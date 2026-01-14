@@ -5,9 +5,10 @@ import { View } from '../types';
 interface SidebarProps {
   currentView: View;
   setView: (view: View) => void;
+  onLogout: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ currentView, setView }) => {
+const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, onLogout }) => {
   const menuItems: { name: View; label: string; icon: string }[] = [
     { name: 'Dashboard', label: 'Panel', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
     { name: 'Calendar', label: 'Calendario', icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' },
@@ -42,13 +43,22 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView }) => {
           </button>
         ))}
       </nav>
-      <div className="p-4 border-t border-gray-100">
+      <div className="p-4 border-t border-gray-100 space-y-2">
         <button className="w-full flex items-center p-2 rounded-2xl bg-gray-50 hover:bg-gray-100 transition-all active:scale-95 text-left border border-transparent hover:border-gray-200">
           <img src="https://picsum.photos/40/40" alt="Avatar" className="rounded-xl w-8 h-8 object-cover shadow-sm" />
           <div className="ml-3 hidden md:block">
             <p className="text-sm font-bold text-gray-800">Administrador</p>
             <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wider">Ver Perfil</p>
           </div>
+        </button>
+        <button 
+          onClick={onLogout}
+          className="w-full flex items-center p-3 rounded-2xl text-rose-500 hover:bg-rose-50 transition-all active:scale-95 group"
+        >
+          <svg className="w-6 h-6 text-rose-400 group-hover:text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+          </svg>
+          <span className="ml-3 hidden md:block font-bold text-sm">Cerrar Sesión</span>
         </button>
       </div>
     </aside>

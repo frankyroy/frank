@@ -7,6 +7,7 @@ import GuestList from './components/GuestList';
 import RoomManager from './components/RoomManager';
 import MaintenanceTracker from './components/MaintenanceTracker';
 import Sidebar from './components/Sidebar';
+import Login from './components/Login';
 
 const INITIAL_ROOMS: Room[] = [
   { id: '1', number: '101', type: 'Individual', status: 'Disponible', price: 45 },
@@ -26,6 +27,7 @@ const INITIAL_RESERVATIONS: Reservation[] = [
 ];
 
 const App: React.FC = () => {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentView, setCurrentView] = useState<View>('Dashboard');
   const [rooms, setRooms] = useState<Room[]>(INITIAL_ROOMS);
   const [guests, setGuests] = useState<Guest[]>(INITIAL_GUESTS);
@@ -105,9 +107,13 @@ const App: React.FC = () => {
     }
   };
 
+  if (!isAuthenticated) {
+    return <Login onLogin={() => setIsAuthenticated(true)} />;
+  }
+
   return (
-    <div className="flex h-screen bg-gray-50 overflow-hidden">
-      <Sidebar currentView={currentView} setView={setCurrentView} />
+    <div className="flex h-screen bg-gray-50 overflow-hidden animate-in fade-in duration-700">
+      <Sidebar currentView={currentView} setView={setCurrentView} onLogout={() => setIsAuthenticated(false)} />
       <main className="flex-1 overflow-y-auto p-4 md:p-8">
         <header className="mb-8 flex justify-between items-center">
           <h1 className="text-3xl font-black text-gray-800 tracking-tight">
