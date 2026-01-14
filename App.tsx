@@ -11,11 +11,11 @@ import Login from './components/Login';
 
 // Claves para LocalStorage
 const STORAGE_KEYS = {
-  ROOMS: 'hostalai_rooms',
-  GUESTS: 'hostalai_guests',
-  RESERVATIONS: 'hostalai_reservations',
-  MAINTENANCE: 'hostalai_maintenance',
-  AUTH: 'hostalai_authenticated'
+  ROOMS: 'hostalai_rooms_v1',
+  GUESTS: 'hostalai_guests_v1',
+  RESERVATIONS: 'hostalai_reservations_v1',
+  MAINTENANCE: 'hostalai_maintenance_v1',
+  AUTH: 'hostalai_authenticated_v1'
 };
 
 const INITIAL_ROOMS: Room[] = [
@@ -55,7 +55,12 @@ const App: React.FC = () => {
 
   const [reservations, setReservations] = useState<Reservation[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.RESERVATIONS);
-    return saved ? JSON.parse(saved) : INITIAL_RESERVATIONS;
+    if (!saved) return INITIAL_RESERVATIONS;
+    try {
+      return JSON.parse(saved);
+    } catch (e) {
+      return INITIAL_RESERVATIONS;
+    }
   });
 
   const [maintenance, setMaintenance] = useState<MaintenanceTask[]>(() => {
@@ -123,6 +128,13 @@ const App: React.FC = () => {
     }
   };
 
+  const handleResetData = () => {
+    if (window.confirm('¡ATENCIÓN! Se borrarán todos los datos actuales y se restaurarán los valores de fábrica. ¿Deseas continuar?')) {
+      localStorage.clear();
+      window.location.reload();
+    }
+  };
+
   const renderView = () => {
     switch (currentView) {
       case 'Dashboard': return <Dashboard data={contextValue} />;
@@ -166,7 +178,6 @@ const App: React.FC = () => {
 
   const handleLogout = () => {
     setIsAuthenticated(false);
-    // Opcional: limpiar redirección o estado si fuera necesario
   };
 
   if (!isAuthenticated) {
@@ -186,10 +197,19 @@ const App: React.FC = () => {
                currentView === 'Rooms' ? 'Gestión de Habitaciones' :
                'Mantenimiento Técnico'}
             </h1>
-            <p className="text-xs text-indigo-500 font-bold uppercase tracking-widest mt-1">Datos guardados localmente</p>
+            <div className="flex items-center space-x-2 mt-1">
+               <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+               <p className="text-[10px] text-emerald-600 font-bold uppercase tracking-widest">Almacenamiento Persistente Activado</p>
+            </div>
           </div>
           <div className="flex items-center space-x-4">
-             <span className="text-sm font-semibold text-gray-400 capitalize bg-white px-4 py-2 rounded-xl shadow-sm border border-gray-100">
+             <button 
+               onClick={handleResetData}
+               className="text-[9px] font-black text-rose-500 hover:text-rose-700 bg-rose-50 px-3 py-1.5 rounded-lg border border-rose-100 transition-all active:scale-95"
+             >
+               RESETEAR DATOS
+             </button>
+             <span className="text-sm font-semibold text-gray-400 capitalize bg-white px-4 py-2 rounded-xl shadow-sm border border-gray-100 hidden sm:block">
                {new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
              </span>
              <div className="h-12 w-12 rounded-2xl bg-indigo-600 flex items-center justify-center text-white font-black shadow-lg shadow-indigo-100 border-2 border-white">M</div>
