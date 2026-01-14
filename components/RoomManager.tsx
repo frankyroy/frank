@@ -16,6 +16,7 @@ const RoomManager: React.FC<RoomManagerProps> = ({ rooms, onUpdateRoom, onAddRoo
   const [formData, setFormData] = useState<Partial<Room>>({});
   const [aiPrompt, setAiPrompt] = useState('');
   const [isProcessingAI, setIsProcessingAI] = useState(false);
+  const [showCopyBadge, setShowCopyBadge] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const statusColors: Record<string, { bg: string; text: string; dot: string }> = {
@@ -89,6 +90,40 @@ const RoomManager: React.FC<RoomManagerProps> = ({ rooms, onUpdateRoom, onAddRoo
     }
   };
 
+  const handleShareStatuses = async () => {
+    let report = `🏨 ESTADO DE HABITACIONES - ${new Date().toLocaleDateString()}\n`;
+    report += `-----------------------------------\n\n`;
+    
+    rooms.sort((a, b) => a.number.localeCompare(b.number)).forEach(room => {
+      report += `• Hab. ${room.number} (${room.type}): ${statusLabels[room.status] || room.status}\n`;
+    });
+
+    const counts = rooms.reduce((acc, room) => {
+      acc[room.status] = (acc[room.status] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    report += `\n📊 RESUMEN:\n`;
+    Object.entries(counts).forEach(([status, count]) => {
+      report += `- ${statusLabels[status] || status}: ${count}\n`;
+    });
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Estado de Habitaciones - HostalAI',
+          text: report,
+        });
+      } catch (err) {
+        console.error("Error al compartir", err);
+      }
+    } else {
+      await navigator.clipboard.writeText(report);
+      setShowCopyBadge(true);
+      setTimeout(() => setShowCopyBadge(false), 2000);
+    }
+  };
+
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -125,18 +160,32 @@ const RoomManager: React.FC<RoomManagerProps> = ({ rooms, onUpdateRoom, onAddRoo
 
   return (
     <div className="space-y-8">
-      <div className="flex justify-between items-center bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm">
+      <div className="flex justify-between items-center flex-wrap gap-4 bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm">
         <div>
           <h2 className="text-xl font-black text-gray-800 tracking-tight">Gestión de Habitaciones</h2>
           <p className="text-gray-400 text-xs font-bold uppercase tracking-widest">{rooms.length} Activas</p>
         </div>
-        <button 
-          onClick={handleOpenAdd}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-4 rounded-2xl font-black flex items-center shadow-2xl shadow-indigo-100 transition-all active:scale-95 group uppercase text-xs tracking-widest"
-        >
-          <svg className="w-5 h-5 mr-3 group-hover:rotate-90 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg>
-          Nueva Habitación
-        </button>
+        <div className="flex items-center space-x-3">
+          {showCopyBadge && (
+            <span className="bg-emerald-100 text-emerald-600 text-[9px] font-black px-3 py-1.5 rounded-lg animate-in fade-in slide-in-from-right-2">
+              REPORTE COPIADO
+            </span>
+          )}
+          <button 
+            onClick={handleShareStatuses}
+            className="bg-indigo-50 hover:bg-indigo-100 text-indigo-600 px-6 py-4 rounded-2xl font-black flex items-center transition-all active:scale-95 group uppercase text-[10px] tracking-widest"
+          >
+            <svg className="w-4 h-4 mr-2 group-hover:rotate-12 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
+            Compartir Estados
+          </button>
+          <button 
+            onClick={handleOpenAdd}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-4 rounded-2xl font-black flex items-center shadow-2xl shadow-indigo-100 transition-all active:scale-95 group uppercase text-[10px] tracking-widest"
+          >
+            <svg className="w-5 h-5 mr-2 group-hover:rotate-90 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg>
+            Nueva Habitación
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
