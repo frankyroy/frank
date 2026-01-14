@@ -3,7 +3,7 @@
 
 Esta aplicación está lista para ser desplegada en Vercel con un solo clic o mediante la CLI.
 
-## 🚀 Pasos para el Despliegue
+## 🚀 Pasos para el DDespliegueDDespliegueespliegueespliegue
 
 1.  **Subir a GitHub**: Sube los archivos de este proyecto a un repositorio de GitHub.
 2.  **Importar en Vercel**: Ve a [vercel.com](https://vercel.com), dale a "Add New" > "Project" e importa tu repositorio.
