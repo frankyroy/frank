@@ -3,22 +3,25 @@
 
 Esta aplicación está lista para ser desplegada en Vercel con un solo clic o mediante la CLI.
 
-## 🚀 Pasos para el DDespliegueDDespliegueespliegueespliegue
+## 🚀 Pasos para el Despliegue
 
-1.  **Subir a GitHub**: Sube los archivos de este proyecto a un repositorio de GitHub.
-2.  **Importar en Vercel**: Ve a [vercel.com](https://vercel.com), dale a "Add New" > "Project" e importa tu repositorio.
-3.  **Configurar Variable de Entorno**:
-    *   Durante el paso de configuración en Vercel, busca la sección **Environment Variables**.
-    *   Añade una nueva variable:
-        *   **Key**: `API_KEY`
-        *   **Value**: *Tu clave de API de Google AI Studio* (Obtenla en [aistudio.google.com](https://aistudio.google.com)).
-4.  **Desplegar**: Haz clic en **Deploy**.
+1.  **Crear Repositorio**: Crea un nuevo repositorio en tu GitHub.
+2.  **Subir Código**: Sube todos los archivos (el `.gitignore` evitará subir lo innecesario).
+3.  **Conectar con Vercel**: 
+    *   Ve a [vercel.com](https://vercel.com).
+    *   Haz clic en **"Add New" > "Project"**.
+    *   Selecciona tu repositorio de GitHub.
+4.  **Configurar Variable de Entorno**:
+    *   En el panel de configuración de Vercel, busca **Environment Variables**.
+    *   Añade la clave: `API_KEY`.
+    *   Pega tu clave de [Google AI Studio](https://aistudio.google.com).
+5.  **Desplegar**: Haz clic en **Deploy**.
 
-## 🛠️ Tecnologías Utilizadas
-- **React 19** (Frontend)
-- **Tailwind CSS** (Diseño)
-- **Google Gemini API** (Inteligencia Artificial)
-- **Vite** (Build Tool)
+## 🛠️ Tecnologías
+- **React 19** + **Vite**
+- **Tailwind CSS** (UI moderna)
+- **Gemini 2.5 & 3** (IA de voz y procesamiento)
+- **Vercel** (Hosting)
 
-## 🔑 Seguridad
-La `API_KEY` se maneja a través de variables de entorno del servidor, lo que garantiza que no quede expuesta directamente en el código fuente público del repositorio.
+## 🔑 Notas de Seguridad
+Nunca compartas tu archivo `.env` o tu `API_KEY` públicamente. Vercel se encarga de inyectar la clave de forma segura en el servidor.

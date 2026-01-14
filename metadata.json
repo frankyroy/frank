@@ -1,5 +1,7 @@
 {
   "name": "Hostal Manager",
   "description": "A comprehensive hostel management system including reservation management, guest tracking, room inventory, and maintenance tracking.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [
+    "microphone"
+  ]
 }
