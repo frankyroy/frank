@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { View, Room, Guest, Reservation, MaintenanceTask } from './types';
 import Dashboard from './components/Dashboard';
 import Calendar from './components/Calendar';
@@ -8,6 +8,15 @@ import RoomManager from './components/RoomManager';
 import MaintenanceTracker from './components/MaintenanceTracker';
 import Sidebar from './components/Sidebar';
 import Login from './components/Login';
+
+// Claves para LocalStorage
+const STORAGE_KEYS = {
+  ROOMS: 'hostalai_rooms',
+  GUESTS: 'hostalai_guests',
+  RESERVATIONS: 'hostalai_reservations',
+  MAINTENANCE: 'hostalai_maintenance',
+  AUTH: 'hostalai_authenticated'
+};
 
 const INITIAL_ROOMS: Room[] = [
   { id: '1', number: '101', type: 'Individual', status: 'Disponible', price: 45 },
@@ -27,12 +36,53 @@ const INITIAL_RESERVATIONS: Reservation[] = [
 ];
 
 const App: React.FC = () => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  // Inicialización de estado con carga desde LocalStorage
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    return localStorage.getItem(STORAGE_KEYS.AUTH) === 'true';
+  });
+
   const [currentView, setCurrentView] = useState<View>('Dashboard');
-  const [rooms, setRooms] = useState<Room[]>(INITIAL_ROOMS);
-  const [guests, setGuests] = useState<Guest[]>(INITIAL_GUESTS);
-  const [reservations, setReservations] = useState<Reservation[]>(INITIAL_RESERVATIONS);
-  const [maintenance, setMaintenance] = useState<MaintenanceTask[]>([]);
+
+  const [rooms, setRooms] = useState<Room[]>(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.ROOMS);
+    return saved ? JSON.parse(saved) : INITIAL_ROOMS;
+  });
+
+  const [guests, setGuests] = useState<Guest[]>(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.GUESTS);
+    return saved ? JSON.parse(saved) : INITIAL_GUESTS;
+  });
+
+  const [reservations, setReservations] = useState<Reservation[]>(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.RESERVATIONS);
+    return saved ? JSON.parse(saved) : INITIAL_RESERVATIONS;
+  });
+
+  const [maintenance, setMaintenance] = useState<MaintenanceTask[]>(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.MAINTENANCE);
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  // Efectos para persistir cambios automáticamente
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.ROOMS, JSON.stringify(rooms));
+  }, [rooms]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.GUESTS, JSON.stringify(guests));
+  }, [guests]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.RESERVATIONS, JSON.stringify(reservations));
+  }, [reservations]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.MAINTENANCE, JSON.stringify(maintenance));
+  }, [maintenance]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.AUTH, isAuthenticated.toString());
+  }, [isAuthenticated]);
 
   const contextValue = useMemo(() => ({
     rooms, guests, reservations, maintenance,
@@ -102,9 +152,21 @@ const App: React.FC = () => {
           onDeleteRoom={handleDeleteRoom}
         />
       );
-      case 'Maintenance': return <MaintenanceTracker tasks={maintenance} rooms={rooms} onUpdateTask={(t) => setMaintenance(maintenance.map(m => m.id === t.id ? t : m))} onAddTask={(t) => setMaintenance([...maintenance, t])} />;
+      case 'Maintenance': return (
+        <MaintenanceTracker 
+          tasks={maintenance} 
+          rooms={rooms} 
+          onUpdateTask={(t) => setMaintenance(maintenance.map(m => m.id === t.id ? t : m))} 
+          onAddTask={(t) => setMaintenance([...maintenance, t])} 
+        />
+      );
       default: return <Dashboard data={contextValue} />;
     }
+  };
+
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    // Opcional: limpiar redirección o estado si fuera necesario
   };
 
   if (!isAuthenticated) {
@@ -113,19 +175,24 @@ const App: React.FC = () => {
 
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden animate-in fade-in duration-700">
-      <Sidebar currentView={currentView} setView={setCurrentView} onLogout={() => setIsAuthenticated(false)} />
+      <Sidebar currentView={currentView} setView={setCurrentView} onLogout={handleLogout} />
       <main className="flex-1 overflow-y-auto p-4 md:p-8">
-        <header className="mb-8 flex justify-between items-center">
-          <h1 className="text-3xl font-black text-gray-800 tracking-tight">
-            {currentView === 'Dashboard' ? 'Panel de Control' : 
-             currentView === 'Calendar' ? 'Calendario de Reservas' :
-             currentView === 'Guests' ? 'Listado de Huéspedes' :
-             currentView === 'Rooms' ? 'Gestión de Habitaciones' :
-             'Mantenimiento Técnico'}
-          </h1>
+        <header className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-black text-gray-800 tracking-tight">
+              {currentView === 'Dashboard' ? 'Panel de Control' : 
+               currentView === 'Calendar' ? 'Calendario de Reservas' :
+               currentView === 'Guests' ? 'Listado de Huéspedes' :
+               currentView === 'Rooms' ? 'Gestión de Habitaciones' :
+               'Mantenimiento Técnico'}
+            </h1>
+            <p className="text-xs text-indigo-500 font-bold uppercase tracking-widest mt-1">Datos guardados localmente</p>
+          </div>
           <div className="flex items-center space-x-4">
-             <span className="text-sm font-semibold text-gray-400 capitalize">{new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
-             <div className="h-12 w-12 rounded-2xl bg-indigo-600 flex items-center justify-center text-white font-black shadow-lg shadow-indigo-100">M</div>
+             <span className="text-sm font-semibold text-gray-400 capitalize bg-white px-4 py-2 rounded-xl shadow-sm border border-gray-100">
+               {new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+             </span>
+             <div className="h-12 w-12 rounded-2xl bg-indigo-600 flex items-center justify-center text-white font-black shadow-lg shadow-indigo-100 border-2 border-white">M</div>
           </div>
         </header>
         {renderView()}
