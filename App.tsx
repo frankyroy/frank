@@ -9,7 +9,6 @@ import MaintenanceTracker from './components/MaintenanceTracker';
 import Sidebar from './components/Sidebar';
 import Login from './components/Login';
 
-// Claves para LocalStorage
 const STORAGE_KEYS = {
   ROOMS: 'hostalai_rooms_v1',
   GUESTS: 'hostalai_guests_v1',
@@ -36,58 +35,33 @@ const INITIAL_RESERVATIONS: Reservation[] = [
 ];
 
 const App: React.FC = () => {
-  // Inicialización de estado con carga desde LocalStorage
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
     return localStorage.getItem(STORAGE_KEYS.AUTH) === 'true';
   });
 
   const [currentView, setCurrentView] = useState<View>('Dashboard');
 
-  const [rooms, setRooms] = useState<Room[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.ROOMS);
-    return saved ? JSON.parse(saved) : INITIAL_ROOMS;
-  });
-
-  const [guests, setGuests] = useState<Guest[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.GUESTS);
-    return saved ? JSON.parse(saved) : INITIAL_GUESTS;
-  });
-
-  const [reservations, setReservations] = useState<Reservation[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.RESERVATIONS);
-    if (!saved) return INITIAL_RESERVATIONS;
+  // Cargadores seguros para evitar pantallas blancas por datos corruptos
+  const loadSafe = <T,>(key: string, initial: T): T => {
     try {
-      return JSON.parse(saved);
+      const saved = localStorage.getItem(key);
+      return saved ? JSON.parse(saved) : initial;
     } catch (e) {
-      return INITIAL_RESERVATIONS;
+      console.error(`Error loading ${key}`, e);
+      return initial;
     }
-  });
+  };
 
-  const [maintenance, setMaintenance] = useState<MaintenanceTask[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEYS.MAINTENANCE);
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [rooms, setRooms] = useState<Room[]>(() => loadSafe(STORAGE_KEYS.ROOMS, INITIAL_ROOMS));
+  const [guests, setGuests] = useState<Guest[]>(() => loadSafe(STORAGE_KEYS.GUESTS, INITIAL_GUESTS));
+  const [reservations, setReservations] = useState<Reservation[]>(() => loadSafe(STORAGE_KEYS.RESERVATIONS, INITIAL_RESERVATIONS));
+  const [maintenance, setMaintenance] = useState<MaintenanceTask[]>(() => loadSafe(STORAGE_KEYS.MAINTENANCE, []));
 
-  // Efectos para persistir cambios automáticamente
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.ROOMS, JSON.stringify(rooms));
-  }, [rooms]);
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.GUESTS, JSON.stringify(guests));
-  }, [guests]);
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.RESERVATIONS, JSON.stringify(reservations));
-  }, [reservations]);
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.MAINTENANCE, JSON.stringify(maintenance));
-  }, [maintenance]);
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.AUTH, isAuthenticated.toString());
-  }, [isAuthenticated]);
+  useEffect(() => { localStorage.setItem(STORAGE_KEYS.ROOMS, JSON.stringify(rooms)); }, [rooms]);
+  useEffect(() => { localStorage.setItem(STORAGE_KEYS.GUESTS, JSON.stringify(guests)); }, [guests]);
+  useEffect(() => { localStorage.setItem(STORAGE_KEYS.RESERVATIONS, JSON.stringify(reservations)); }, [reservations]);
+  useEffect(() => { localStorage.setItem(STORAGE_KEYS.MAINTENANCE, JSON.stringify(maintenance)); }, [maintenance]);
+  useEffect(() => { localStorage.setItem(STORAGE_KEYS.AUTH, isAuthenticated.toString()); }, [isAuthenticated]);
 
   const contextValue = useMemo(() => ({
     rooms, guests, reservations, maintenance,
@@ -120,8 +94,12 @@ const App: React.FC = () => {
     setRooms(prev => [...prev, room]);
   };
 
+  const handleUpdateRoom = (updatedRoom: Room) => {
+    setRooms(prev => prev.map(rm => rm.id === updatedRoom.id ? updatedRoom : rm));
+  };
+
   const handleDeleteRoom = (roomId: string) => {
-    if (window.confirm('¿Estás seguro de que deseas eliminar esta habitación? Esto también eliminará las reservas y tareas de mantenimiento asociadas.')) {
+    if (window.confirm('¿Deseas eliminar esta habitación y sus datos asociados?')) {
       setRooms(prev => prev.filter(r => r.id !== roomId));
       setReservations(prev => prev.filter(res => res.roomId !== roomId));
       setMaintenance(prev => prev.filter(task => task.roomId !== roomId));
@@ -129,7 +107,7 @@ const App: React.FC = () => {
   };
 
   const handleResetData = () => {
-    if (window.confirm('¡ATENCIÓN! Se borrarán todos los datos actuales y se restaurarán los valores de fábrica. ¿Deseas continuar?')) {
+    if (window.confirm('Se borrarán todos los datos. ¿Continuar?')) {
       localStorage.clear();
       window.location.reload();
     }
@@ -159,7 +137,7 @@ const App: React.FC = () => {
       case 'Rooms': return (
         <RoomManager 
           rooms={rooms} 
-          onUpdateRoom={(r) => setRooms(rooms.map(rm => rm.id === r.id ? r : rm))} 
+          onUpdateRoom={handleUpdateRoom} 
           onAddRoom={handleAddRoom}
           onDeleteRoom={handleDeleteRoom}
         />
@@ -168,47 +146,32 @@ const App: React.FC = () => {
         <MaintenanceTracker 
           tasks={maintenance} 
           rooms={rooms} 
-          onUpdateTask={(t) => setMaintenance(maintenance.map(m => m.id === t.id ? t : m))} 
-          onAddTask={(t) => setMaintenance([...maintenance, t])} 
+          onUpdateTask={(t) => setMaintenance(prev => prev.map(m => m.id === t.id ? t : m))} 
+          onAddTask={(t) => setMaintenance(prev => [...prev, t])} 
         />
       );
       default: return <Dashboard data={contextValue} />;
     }
   };
 
-  const handleLogout = () => {
-    setIsAuthenticated(false);
-  };
-
-  if (!isAuthenticated) {
-    return <Login onLogin={() => setIsAuthenticated(true)} />;
-  }
+  if (!isAuthenticated) return <Login onLogin={() => setIsAuthenticated(true)} />;
 
   return (
-    <div className="flex h-screen bg-gray-50 overflow-hidden animate-in fade-in duration-700">
-      <Sidebar currentView={currentView} setView={setCurrentView} onLogout={handleLogout} />
+    <div className="flex h-screen bg-gray-50 overflow-hidden">
+      <Sidebar currentView={currentView} setView={setCurrentView} onLogout={() => setIsAuthenticated(false)} />
       <main className="flex-1 overflow-y-auto p-4 md:p-8">
         <header className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-black text-gray-800 tracking-tight">
-              {currentView === 'Dashboard' ? 'Panel de Control' : 
-               currentView === 'Calendar' ? 'Calendario de Reservas' :
-               currentView === 'Guests' ? 'Listado de Huéspedes' :
-               currentView === 'Rooms' ? 'Gestión de Habitaciones' :
-               'Mantenimiento Técnico'}
+              {currentView}
             </h1>
             <div className="flex items-center space-x-2 mt-1">
                <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
-               <p className="text-[10px] text-emerald-600 font-bold uppercase tracking-widest">Almacenamiento Persistente Activado</p>
+               <p className="text-[10px] text-emerald-600 font-bold uppercase tracking-widest">Sincronización Activa</p>
             </div>
           </div>
           <div className="flex items-center space-x-4">
-             <button 
-               onClick={handleResetData}
-               className="text-[9px] font-black text-rose-500 hover:text-rose-700 bg-rose-50 px-3 py-1.5 rounded-lg border border-rose-100 transition-all active:scale-95"
-             >
-               RESETEAR DATOS
-             </button>
+             <button onClick={handleResetData} className="text-[9px] font-black text-rose-500 hover:text-rose-700 bg-rose-50 px-3 py-1.5 rounded-lg border border-rose-100 transition-all active:scale-95">RESETEAR</button>
              <span className="text-sm font-semibold text-gray-400 capitalize bg-white px-4 py-2 rounded-xl shadow-sm border border-gray-100 hidden sm:block">
                {new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
              </span>

@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Reservation, Room, Guest } from '../types';
 
 interface CalendarProps {
@@ -11,10 +11,12 @@ interface CalendarProps {
 }
 
 type ModalMode = 'view' | 'edit' | 'add' | null;
+type ViewType = 'timeline' | 'agenda';
 
 const Calendar: React.FC<CalendarProps> = ({ reservations, rooms, guests, onAddReservation, onUpdateReservation }) => {
   const [modalMode, setModalMode] = useState<ModalMode>(null);
   const [selectedRes, setSelectedRes] = useState<Reservation | null>(null);
+  const [viewType, setViewType] = useState<ViewType>('timeline');
   
   // Form State
   const [formData, setFormData] = useState<Partial<Reservation>>({
@@ -26,7 +28,12 @@ const Calendar: React.FC<CalendarProps> = ({ reservations, rooms, guests, onAddR
     totalPrice: 0
   });
 
-  // Calculate total price automatically when dates or room changes
+  // Ordenar reservaciones cronológicamente para la vista Agenda
+  const sortedReservations = useMemo(() => {
+    return [...reservations].sort((a, b) => new Date(a.checkIn).getTime() - new Date(b.checkIn).getTime());
+  }, [reservations]);
+
+  // Calculate total price automatically
   useEffect(() => {
     if ((modalMode === 'add' || modalMode === 'edit') && formData.checkIn && formData.checkOut && formData.roomId) {
       const room = rooms.find(r => r.id === formData.roomId);
@@ -93,85 +100,176 @@ const Calendar: React.FC<CalendarProps> = ({ reservations, rooms, guests, onAddR
     setModalMode(null);
   };
 
-  const getSelectedData = () => {
-    if (!selectedRes) return null;
-    const guest = guests.find(g => g.id === selectedRes.guestId);
-    const room = rooms.find(r => r.id === selectedRes.roomId);
-    return { guest, room, reservation: selectedRes };
+  const getReservationDetails = (res: Reservation) => {
+    const guest = guests.find(g => g.id === res.guestId);
+    const room = rooms.find(r => r.id === res.roomId);
+    return { guest, room, reservation: res };
   };
 
-  const selectedData = getSelectedData();
+  const selectedData = selectedRes ? getReservationDetails(selectedRes) : null;
 
   return (
-    <div className="relative">
-      <div className="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 overflow-x-auto">
-        <div className="min-w-[1200px]">
-          <div className="flex border-b border-gray-100 bg-gray-50/50">
-            <div className="w-40 p-6 font-black text-gray-400 border-r flex items-center justify-center bg-gray-50 uppercase text-[10px] tracking-widest">Habitación</div>
-            <div className="flex-1 flex">
-              {days.map((day, i) => (
-                <div key={i} className="flex-1 p-5 text-center border-r last:border-r-0">
-                  <p className="text-[10px] text-gray-400 uppercase font-black tracking-widest mb-1">{day.toLocaleDateString('es-ES', { weekday: 'short' })}</p>
-                  <p className="font-black text-gray-700 text-lg">{day.getDate()}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {rooms.map(room => (
-            <div key={room.id} className="flex border-b border-gray-100 last:border-b-0 group">
-              <div className="w-40 p-6 border-r flex flex-col justify-center items-center bg-gray-50/20 group-hover:bg-indigo-50/30 transition-colors">
-                <p className="font-black text-gray-800 text-lg">Hab. {room.number}</p>
-                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{room.type}</p>
-              </div>
-              <div className="flex-1 flex relative h-24">
-                {days.map((day, i) => (
-                  <div 
-                    key={i} 
-                    onClick={() => handleOpenAdd(room.id, day)}
-                    className="flex-1 border-r last:border-r-0 hover:bg-gray-50/80 cursor-pointer transition-colors"
-                  ></div>
-                ))}
-                
-                {reservations.filter(res => res.roomId === room.id).map(res => {
-                  const guest = guests.find(g => g.id === res.guestId);
-                  const checkInDate = new Date(res.checkIn);
-                  const firstDay = days[0];
-                  const diffDays = Math.floor((checkInDate.getTime() - firstDay.getTime()) / (1000 * 3600 * 24));
-                  const checkOutDate = new Date(res.checkOut);
-                  const duration = Math.max(1, Math.floor((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 3600 * 24)));
-                  
-                  if (diffDays + duration < 0 || diffDays >= 14) return null;
-
-                  const start = Math.max(0, diffDays);
-                  const end = Math.min(14, diffDays + duration);
-                  const widthPercent = ((end - start) / 14) * 100;
-                  const leftPercent = (start / 14) * 100;
-
-                  return (
-                    <button 
-                      key={res.id} 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleOpenView(res);
-                      }}
-                      style={{ left: `${leftPercent}%`, width: `${widthPercent}%` }}
-                      className={`absolute top-4 bottom-4 mx-1 rounded-2xl p-3 text-xs font-black shadow-lg flex items-center truncate transition-all active:scale-95 z-10 ${
-                        res.status === 'Check-in' ? 'bg-indigo-600 text-white shadow-indigo-200' :
-                        res.status === 'Confirmada' ? 'bg-blue-500 text-white shadow-blue-200' :
-                        'bg-gray-200 text-gray-600'
-                      }`}
-                    >
-                      <span className="truncate">{guest?.name}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
+    <div className="space-y-6">
+      {/* Header con Switcher de Vistas */}
+      <div className="flex flex-col sm:flex-row justify-between items-center bg-white p-4 rounded-[2rem] border border-gray-100 shadow-sm gap-4">
+        <div className="flex bg-gray-100 p-1.5 rounded-2xl w-fit">
+          <button 
+            onClick={() => setViewType('timeline')}
+            className={`px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${viewType === 'timeline' ? 'bg-white text-indigo-600 shadow-md' : 'text-gray-400 hover:text-gray-600'}`}
+          >
+            Cronograma
+          </button>
+          <button 
+            onClick={() => setViewType('agenda')}
+            className={`px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${viewType === 'agenda' ? 'bg-white text-indigo-600 shadow-md' : 'text-gray-400 hover:text-gray-600'}`}
+          >
+            Agenda
+          </button>
+        </div>
+        <div className="text-right px-4 hidden sm:block">
+           <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Vista Actual</p>
+           <p className="text-sm font-black text-gray-800">{viewType === 'timeline' ? 'Grilla de 14 Días' : 'Lista Cronológica'}</p>
         </div>
       </div>
 
+      {viewType === 'timeline' ? (
+        <div className="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 overflow-x-auto">
+          <div className="min-w-[1200px]">
+            <div className="flex border-b border-gray-100 bg-gray-50/50">
+              <div className="w-40 p-6 font-black text-gray-400 border-r flex items-center justify-center bg-gray-50 uppercase text-[10px] tracking-widest">Habitación</div>
+              <div className="flex-1 flex">
+                {days.map((day, i) => (
+                  <div key={i} className="flex-1 p-5 text-center border-r last:border-r-0">
+                    <p className="text-[10px] text-gray-400 uppercase font-black tracking-widest mb-1">{day.toLocaleDateString('es-ES', { weekday: 'short' })}</p>
+                    <p className="font-black text-gray-700 text-lg">{day.getDate()}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {rooms.map(room => (
+              <div key={room.id} className="flex border-b border-gray-100 last:border-b-0 group">
+                <div className="w-40 p-6 border-r flex flex-col justify-center items-center bg-gray-50/20 group-hover:bg-indigo-50/30 transition-colors">
+                  <p className="font-black text-gray-800 text-lg">Hab. {room.number}</p>
+                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{room.type}</p>
+                </div>
+                <div className="flex-1 flex relative h-24">
+                  {days.map((day, i) => (
+                    <div 
+                      key={i} 
+                      onClick={() => handleOpenAdd(room.id, day)}
+                      className="flex-1 border-r last:border-r-0 hover:bg-gray-50/80 cursor-pointer transition-colors"
+                    ></div>
+                  ))}
+                  
+                  {reservations.filter(res => res.roomId === room.id).map(res => {
+                    const guest = guests.find(g => g.id === res.guestId);
+                    const checkInDate = new Date(res.checkIn);
+                    const firstDay = days[0];
+                    const diffDays = Math.floor((checkInDate.getTime() - firstDay.getTime()) / (1000 * 3600 * 24));
+                    const checkOutDate = new Date(res.checkOut);
+                    const duration = Math.max(1, Math.floor((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 3600 * 24)));
+                    
+                    if (diffDays + duration < 0 || diffDays >= 14) return null;
+
+                    const start = Math.max(0, diffDays);
+                    const end = Math.min(14, diffDays + duration);
+                    const widthPercent = ((end - start) / 14) * 100;
+                    const leftPercent = (start / 14) * 100;
+
+                    return (
+                      <button 
+                        key={res.id} 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenView(res);
+                        }}
+                        style={{ left: `${leftPercent}%`, width: `${widthPercent}%` }}
+                        className={`absolute top-4 bottom-4 mx-1 rounded-2xl p-3 text-xs font-black shadow-lg flex items-center truncate transition-all active:scale-95 z-10 ${
+                          res.status === 'Check-in' ? 'bg-indigo-600 text-white shadow-indigo-200' :
+                          res.status === 'Confirmada' ? 'bg-blue-500 text-white shadow-blue-200' :
+                          res.status === 'Check-out' ? 'bg-emerald-600 text-white shadow-emerald-200' :
+                          'bg-gray-200 text-gray-600'
+                        }`}
+                      >
+                        <span className="truncate">{guest?.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        /* Vista Agenda Cronológica */
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in duration-500">
+          {sortedReservations.length > 0 ? (
+            sortedReservations.map(res => {
+              const { guest, room } = getReservationDetails(res);
+              const checkInDate = new Date(res.checkIn);
+              
+              return (
+                <button 
+                  key={res.id}
+                  onClick={() => handleOpenView(res)}
+                  className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm hover:shadow-xl hover:shadow-gray-200/40 transition-all text-left group flex flex-col justify-between"
+                >
+                  <div className="space-y-6">
+                    <div className="flex justify-between items-start">
+                      <div className="flex flex-col items-center justify-center w-14 h-14 bg-indigo-50 rounded-2xl text-indigo-600 border border-indigo-100 group-hover:bg-indigo-600 group-hover:text-white transition-all duration-300">
+                        <span className="text-[10px] font-black uppercase tracking-tighter leading-none">{checkInDate.toLocaleDateString('es-ES', { month: 'short' })}</span>
+                        <span className="text-xl font-black">{checkInDate.getDate()}</span>
+                      </div>
+                      <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                        res.status === 'Check-in' ? 'bg-indigo-100 text-indigo-700' : 
+                        res.status === 'Confirmada' ? 'bg-blue-100 text-blue-700' : 
+                        res.status === 'Check-out' ? 'bg-emerald-100 text-emerald-700' :
+                        'bg-rose-100 text-rose-700'
+                      }`}>
+                        {res.status}
+                      </span>
+                    </div>
+
+                    <div>
+                      <h4 className="text-xl font-black text-gray-800 tracking-tight">{guest?.name || 'Huésped Desconocido'}</h4>
+                      <p className="text-sm font-bold text-gray-400 mt-1">Habitación {room?.number || 'N/A'} • {room?.type}</p>
+                    </div>
+
+                    <div className="flex items-center space-x-4 text-xs font-bold text-gray-500 py-3 border-y border-gray-50">
+                       <div className="flex-1">
+                          <p className="text-[10px] uppercase text-gray-300 mb-0.5">Entrada</p>
+                          <p>{res.checkIn}</p>
+                       </div>
+                       <div className="w-px h-6 bg-gray-100"></div>
+                       <div className="flex-1 text-right">
+                          <p className="text-[10px] uppercase text-gray-300 mb-0.5">Salida</p>
+                          <p>{res.checkOut}</p>
+                       </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-6 flex justify-between items-center">
+                    <p className="text-xl font-black text-indigo-600">${res.totalPrice}</p>
+                    <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-400 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-all">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg>
+                    </div>
+                  </div>
+                </button>
+              );
+            })
+          ) : (
+            <div className="col-span-full py-32 text-center bg-white rounded-[3rem] border-2 border-dashed border-gray-100">
+               <div className="bg-gray-50 p-6 rounded-[2rem] inline-block mb-4">
+                  <svg className="w-12 h-12 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+               </div>
+               <p className="text-gray-400 font-black uppercase tracking-widest text-sm">No hay reservas agendadas</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Modal View/Edit/Add Remains Identical but ensuring proper triggers */}
       {(modalMode === 'view' && selectedData) && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setModalMode(null)}>
           <div 
@@ -180,7 +278,7 @@ const Calendar: React.FC<CalendarProps> = ({ reservations, rooms, guests, onAddR
           >
             <div className="flex justify-between items-start mb-8">
               <div>
-                <h2 className="text-3xl font-black text-gray-800 tracking-tight">Reserva</h2>
+                <h2 className="text-3xl font-black text-gray-800 tracking-tight">Detalle Reserva</h2>
                 <p className="text-gray-400 font-bold uppercase text-[10px] tracking-widest mt-1">ID: {selectedRes?.id}</p>
               </div>
               <button onClick={() => setModalMode(null)} className="p-3 hover:bg-gray-100 rounded-2xl transition-all">
@@ -206,7 +304,7 @@ const Calendar: React.FC<CalendarProps> = ({ reservations, rooms, guests, onAddR
                   <p className="text-xs text-gray-500 font-bold">{selectedData.room?.type}</p>
                 </div>
                 <div className="p-5 bg-gray-50 rounded-[2rem] border border-gray-100">
-                  <p className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-widest">Precio Final</p>
+                  <p className="text-[10px] font-black text-gray-400 uppercase mb-2 tracking-widest">Monto Total</p>
                   <p className="font-black text-indigo-600 text-lg">${selectedData.reservation.totalPrice}</p>
                 </div>
               </div>
@@ -319,10 +417,6 @@ const Calendar: React.FC<CalendarProps> = ({ reservations, rooms, guests, onAddR
                    <span className="text-xl">${formData.totalPrice}</span>
                 </div>
               </div>
-            </div>
-
-            <div className="mt-6 p-4 bg-gray-50 rounded-2xl text-[10px] text-gray-400 font-bold uppercase tracking-widest">
-              El total se calcula automáticamente multiplicando las noches por el precio de la habitación.
             </div>
 
             <div className="flex space-x-4 pt-10">
