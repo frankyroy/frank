@@ -11,7 +11,7 @@ Esta aplicación está lista para ser desplegada en Vercel con un solo clic o me
     *   Durante el paso de configuración en Vercel, busca la sección **Environment Variables**.
     *   Añade una nueva variable:
         *   **Key**: `API_KEY`
-        *   **Value**: *tu clave api* (Obtenla en [aistudio.google.com](https://aistudio.google.com)).
+        *   **Value**: *Tu clave de API de Google AI Studio* (Obtenla en [aistudio.google.com](https://aistudio.google.com)).
 4.  **Desplegar**: Haz clic en **Deploy**.
 
 ## 🛠️ Tecnologías Utilizadas
