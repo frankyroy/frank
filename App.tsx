@@ -10,12 +10,15 @@ import Sidebar from './components/Sidebar';
 import Login from './components/Login';
 
 const STORAGE_KEYS = {
-  ROOMS: 'hostalai_rooms_v1',
-  GUESTS: 'hostalai_guests_v1',
-  RESERVATIONS: 'hostalai_reservations_v1',
-  MAINTENANCE: 'hostalai_maintenance_v1',
-  AUTH: 'hostalai_authenticated_v1'
+  ROOMS: 'hostalai_rooms_v2',
+  GUESTS: 'hostalai_guests_v2',
+  RESERVATIONS: 'hostalai_reservations_v2',
+  MAINTENANCE: 'hostalai_maintenance_v2',
+  AUTH: 'hostalai_authenticated_v2',
+  ROOM_TYPES: 'hostalai_room_types_v2'
 };
+
+const INITIAL_ROOM_TYPES = ['Individual', 'Doble', 'Suite', 'Dormitorio'];
 
 const INITIAL_ROOMS: Room[] = [
   { id: '1', number: '101', type: 'Individual', status: 'Disponible', price: 45 },
@@ -41,7 +44,6 @@ const App: React.FC = () => {
 
   const [currentView, setCurrentView] = useState<View>('Dashboard');
 
-  // Cargadores seguros para evitar pantallas blancas por datos corruptos
   const loadSafe = <T,>(key: string, initial: T): T => {
     try {
       const saved = localStorage.getItem(key);
@@ -52,6 +54,7 @@ const App: React.FC = () => {
     }
   };
 
+  const [roomTypes, setRoomTypes] = useState<string[]>(() => loadSafe(STORAGE_KEYS.ROOM_TYPES, INITIAL_ROOM_TYPES));
   const [rooms, setRooms] = useState<Room[]>(() => loadSafe(STORAGE_KEYS.ROOMS, INITIAL_ROOMS));
   const [guests, setGuests] = useState<Guest[]>(() => loadSafe(STORAGE_KEYS.GUESTS, INITIAL_GUESTS));
   const [reservations, setReservations] = useState<Reservation[]>(() => loadSafe(STORAGE_KEYS.RESERVATIONS, INITIAL_RESERVATIONS));
@@ -61,12 +64,13 @@ const App: React.FC = () => {
   useEffect(() => { localStorage.setItem(STORAGE_KEYS.GUESTS, JSON.stringify(guests)); }, [guests]);
   useEffect(() => { localStorage.setItem(STORAGE_KEYS.RESERVATIONS, JSON.stringify(reservations)); }, [reservations]);
   useEffect(() => { localStorage.setItem(STORAGE_KEYS.MAINTENANCE, JSON.stringify(maintenance)); }, [maintenance]);
+  useEffect(() => { localStorage.setItem(STORAGE_KEYS.ROOM_TYPES, JSON.stringify(roomTypes)); }, [roomTypes]);
   useEffect(() => { localStorage.setItem(STORAGE_KEYS.AUTH, isAuthenticated.toString()); }, [isAuthenticated]);
 
   const contextValue = useMemo(() => ({
-    rooms, guests, reservations, maintenance,
-    setRooms, setGuests, setReservations, setMaintenance
-  }), [rooms, guests, reservations, maintenance]);
+    rooms, guests, reservations, maintenance, roomTypes,
+    setRooms, setGuests, setReservations, setMaintenance, setRoomTypes
+  }), [rooms, guests, reservations, maintenance, roomTypes]);
 
   const handleUpdateReservation = (res: Reservation) => {
     setReservations(prev => prev.map(r => r.id === res.id ? res : r));
@@ -136,10 +140,12 @@ const App: React.FC = () => {
       );
       case 'Rooms': return (
         <RoomManager 
-          rooms={rooms} 
+          rooms={rooms}
+          roomTypes={roomTypes}
           onUpdateRoom={handleUpdateRoom} 
           onAddRoom={handleAddRoom}
           onDeleteRoom={handleDeleteRoom}
+          onUpdateRoomTypes={setRoomTypes}
         />
       );
       case 'Maintenance': return (

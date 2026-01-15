@@ -10,7 +10,7 @@ export interface Guest {
 export interface Room {
   id: string;
   number: string;
-  type: 'Individual' | 'Doble' | 'Suite' | 'Dormitorio';
+  type: string;
   status: 'Disponible' | 'Ocupada' | 'Limpieza' | 'Mantenimiento';
   price: number;
   imageUrl?: string;
