@@ -21,7 +21,6 @@ const App: React.FC = () => {
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [maintenance, setMaintenance] = useState<MaintenanceTask[]>([]);
 
-  // Escuchar cambios de sesión
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
@@ -40,19 +39,31 @@ const App: React.FC = () => {
   const fetchAllData = async () => {
     setLoading(true);
     try {
-      const [rData, gData, resData, mData] = await Promise.all([
+      const results = await Promise.allSettled([
         supabase.from('rooms').select('*').order('number'),
         supabase.from('guests').select('*').order('name'),
         supabase.from('reservations').select('*'),
         supabase.from('maintenance_tasks').select('*')
       ]);
 
-      if (rData.data) setRooms(rData.data);
-      if (gData.data) setGuests(gData.data);
-      if (resData.data) setReservations(resData.data);
-      if (mData.data) setMaintenance(mData.data);
+      results.forEach((res, index) => {
+        if (res.status === 'fulfilled') {
+          const { data, error } = res.value;
+          if (error) {
+             console.error(`Error en el índice de carga ${index}:`, error);
+             if (error.code === 'PGRST205') {
+               console.warn("Error de caché de esquema (PGRST205). Las tablas son nuevas. Intenta refrescar el Dashboard de Supabase o la app en 30 segundos.");
+             }
+          } else if (data) {
+            if (index === 0) setRooms(data);
+            if (index === 1) setGuests(data);
+            if (index === 2) setReservations(data);
+            if (index === 3) setMaintenance(data);
+          }
+        }
+      });
     } catch (err) {
-      console.error("Error fetching cloud data:", err);
+      console.error("Error crítico al obtener datos de la nube:", err);
     } finally {
       setLoading(false);
     }
@@ -60,39 +71,46 @@ const App: React.FC = () => {
 
   const handleAddRoom = async (room: Room) => {
     const { data, error } = await supabase.from('rooms').insert([room]).select();
+    if (error) throw error;
     if (data) setRooms(prev => [...prev, data[0]]);
   };
 
   const handleUpdateRoom = async (updatedRoom: Room) => {
     const { error } = await supabase.from('rooms').update(updatedRoom).eq('id', updatedRoom.id);
-    if (!error) setRooms(prev => prev.map(rm => rm.id === updatedRoom.id ? updatedRoom : rm));
+    if (error) throw error;
+    setRooms(prev => prev.map(rm => rm.id === updatedRoom.id ? updatedRoom : rm));
   };
 
   const handleDeleteRoom = async (roomId: string) => {
     if (window.confirm('¿Eliminar esta habitación de la nube?')) {
       const { error } = await supabase.from('rooms').delete().eq('id', roomId);
-      if (!error) setRooms(prev => prev.filter(r => r.id !== roomId));
+      if (error) throw error;
+      setRooms(prev => prev.filter(r => r.id !== roomId));
     }
   };
 
   const handleAddGuest = async (guest: Guest) => {
     const { data, error } = await supabase.from('guests').insert([guest]).select();
+    if (error) throw error;
     if (data) setGuests(prev => [...prev, data[0]]);
   };
 
   const handleUpdateGuest = async (updatedGuest: Guest) => {
     const { error } = await supabase.from('guests').update(updatedGuest).eq('id', updatedGuest.id);
-    if (!error) setGuests(prev => prev.map(g => g.id === updatedGuest.id ? updatedGuest : g));
+    if (error) throw error;
+    setGuests(prev => prev.map(g => g.id === updatedGuest.id ? updatedGuest : g));
   };
 
   const handleAddReservation = async (res: Reservation) => {
     const { data, error } = await supabase.from('reservations').insert([res]).select();
+    if (error) throw error;
     if (data) setReservations(prev => [...prev, data[0]]);
   };
 
   const handleUpdateReservation = async (res: Reservation) => {
     const { error } = await supabase.from('reservations').update(res).eq('id', res.id);
-    if (!error) setReservations(prev => prev.map(r => r.id === res.id ? res : r));
+    if (error) throw error;
+    setReservations(prev => prev.map(r => r.id === res.id ? res : r));
   };
 
   const contextValue = useMemo(() => ({
@@ -125,7 +143,8 @@ const App: React.FC = () => {
           onAddGuest={handleAddGuest}
           onUpdateGuest={handleUpdateGuest}
           onDeleteGuest={async (id) => {
-            await supabase.from('guests').delete().eq('id', id);
+            const { error } = await supabase.from('guests').delete().eq('id', id);
+            if (error) throw error;
             setGuests(prev => prev.filter(g => g.id !== id));
           }}
         />
@@ -145,11 +164,13 @@ const App: React.FC = () => {
           tasks={maintenance} 
           rooms={rooms} 
           onUpdateTask={async (t) => {
-            await supabase.from('maintenance_tasks').update(t).eq('id', t.id);
+            const { error } = await supabase.from('maintenance_tasks').update(t).eq('id', t.id);
+            if (error) throw error;
             setMaintenance(prev => prev.map(m => m.id === t.id ? t : m));
           }} 
           onAddTask={async (t) => {
-            const { data } = await supabase.from('maintenance_tasks').insert([t]).select();
+            const { data, error } = await supabase.from('maintenance_tasks').insert([t]).select();
+            if (error) throw error;
             if (data) setMaintenance(prev => [...prev, data[0]]);
           }} 
         />
