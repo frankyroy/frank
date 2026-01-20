@@ -1,9 +1,9 @@
 
 -- ==========================================
--- SCRIPT DE CONFIGURACIÓN HOSTALAI CLOUD (VERSIÓN ESTABLE)
+-- SCRIPT DE CONFIGURACIÓN HOSTALAI CLOUD (VERSIÓN FINAL)
 -- ==========================================
 
--- 1. LIMPIEZA TOTAL
+-- 1. LIMPIEZA TOTAL PARA EVITAR COLISIONES
 DROP TABLE IF EXISTS public.maintenance_tasks CASCADE;
 DROP TABLE IF EXISTS public.reservations CASCADE;
 DROP TABLE IF EXISTS public.guests CASCADE;
@@ -58,11 +58,11 @@ ALTER TABLE public.guests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.reservations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.maintenance_tasks ENABLE ROW LEVEL SECURITY;
 
--- 7. POLÍTICAS DE ACCESO
+-- 7. POLÍTICAS DE ACCESO (Permitir todo a usuarios autenticados)
 CREATE POLICY "Full access rooms" ON public.rooms FOR ALL TO authenticated USING (true) WITH CHECK (true);
 CREATE POLICY "Full access guests" ON public.guests FOR ALL TO authenticated USING (true) WITH CHECK (true);
 CREATE POLICY "Full access reservations" ON public.reservations FOR ALL TO authenticated USING (true) WITH CHECK (true);
 CREATE POLICY "Full access maintenance" ON public.maintenance_tasks FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
--- 8. RECARGA DE CACHÉ
+-- 8. RECARGA DE CACHÉ DE LA API (SOLUCIONA EL ERROR PGRST204)
 NOTIFY pgrst, 'reload schema';
