@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MaintenanceTask, Room } from '../types';
 
 interface MaintenanceTrackerProps {
@@ -11,7 +11,13 @@ interface MaintenanceTrackerProps {
 
 const MaintenanceTracker: React.FC<MaintenanceTrackerProps> = ({ tasks, rooms, onUpdateTask, onAddTask }) => {
   const [showForm, setShowForm] = useState(false);
-  const [newTask, setNewTask] = useState({ roomId: rooms[0]?.id || '', description: '', priority: 'Media' as any });
+  const [newTask, setNewTask] = useState({ room_id: '', description: '', priority: 'Media' as any });
+
+  useEffect(() => {
+    if (rooms.length > 0 && !newTask.room_id) {
+      setNewTask(prev => ({ ...prev, room_id: rooms[0].id }));
+    }
+  }, [rooms, showForm]);
 
   const priorityColors = {
     'Baja': 'bg-blue-50 text-blue-600 border-blue-100',
@@ -27,14 +33,17 @@ const MaintenanceTracker: React.FC<MaintenanceTrackerProps> = ({ tasks, rooms, o
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!newTask.room_id) return;
+    
     onAddTask({
       ...newTask,
-      id: Date.now().toString(),
+      id: crypto.randomUUID(),
       status: 'Pendiente',
-      createdAt: new Date().toISOString()
-    });
+      created_at: new Date().toISOString()
+    } as MaintenanceTask);
+    
     setShowForm(false);
-    setNewTask({ roomId: rooms[0]?.id || '', description: '', priority: 'Media' });
+    setNewTask({ room_id: rooms[0]?.id || '', description: '', priority: 'Media' });
   };
 
   return (
@@ -55,7 +64,7 @@ const MaintenanceTracker: React.FC<MaintenanceTrackerProps> = ({ tasks, rooms, o
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {tasks.map(task => {
-          const room = rooms.find(r => r.id === task.roomId);
+          const room = rooms.find(r => r.id === task.room_id);
           return (
             <div key={task.id} className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-gray-100 flex flex-col justify-between hover:shadow-xl hover:shadow-gray-200/40 transition-all duration-500 group border-b-4 border-b-transparent hover:border-b-indigo-500">
               <div className="space-y-5">
@@ -64,11 +73,11 @@ const MaintenanceTracker: React.FC<MaintenanceTrackerProps> = ({ tasks, rooms, o
                     {task.priority}
                   </span>
                   <span className="text-[10px] text-gray-400 font-bold uppercase tracking-tight">
-                    {new Date(task.createdAt).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })}
+                    {new Date(task.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })}
                   </span>
                 </div>
                 <div>
-                  <h4 className="text-2xl font-black text-gray-800 mb-1">Habitación {room?.number}</h4>
+                  <h4 className="text-2xl font-black text-gray-800 mb-1">Habitación {room?.number || 'N/A'}</h4>
                   <p className="text-gray-500 text-sm leading-relaxed font-medium line-clamp-3">{task.description}</p>
                 </div>
               </div>
@@ -126,10 +135,11 @@ const MaintenanceTracker: React.FC<MaintenanceTrackerProps> = ({ tasks, rooms, o
                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Habitación Afectada</label>
                 <select 
                   required 
-                  value={newTask.roomId} 
-                  onChange={e => setNewTask({...newTask, roomId: e.target.value})}
+                  value={newTask.room_id} 
+                  onChange={e => setNewTask({...newTask, room_id: e.target.value})}
                   className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:outline-none appearance-none font-bold text-gray-700"
                 >
+                  <option value="" disabled>Seleccionar habitación</option>
                   {rooms.map(r => <option key={r.id} value={r.id}>Habitación {r.number}</option>)}
                 </select>
               </div>

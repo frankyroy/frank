@@ -22,18 +22,12 @@ const RoomManager: React.FC<RoomManagerProps> = ({
 }) => {
   const [editingRoom, setEditingRoom] = useState<Room | null>(null);
   const [isAdding, setIsAdding] = useState(false);
-  const [showTypeManager, setShowTypeManager] = useState(false);
   const [formData, setFormData] = useState<Partial<Room>>({});
-  const [newTypeInput, setNewTypeInput] = useState('');
   const [isUploading, setIsUploading] = useState(false);
-  
-  const [editingTypeIndex, setEditingTypeIndex] = useState<number | null>(null);
-  const [editingTypeText, setEditingTypeText] = useState('');
 
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
   
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -57,12 +51,11 @@ const RoomManager: React.FC<RoomManagerProps> = ({
     setIsUploading(true);
     
     try {
-      let finalImageUrl = formData.imageUrl;
+      let finalImageUrl = formData.image_url;
 
-      // Si la imagen es un base64 (capturada por cámara), subirla a Supabase Storage
-      if (formData.imageUrl?.startsWith('data:image')) {
+      if (formData.image_url?.startsWith('data:image')) {
         const id = isAdding ? `temp-${Date.now()}` : (editingRoom?.id || '0');
-        const cloudUrl = await uploadRoomImage(id, formData.imageUrl);
+        const cloudUrl = await uploadRoomImage(id, formData.image_url);
         if (cloudUrl) finalImageUrl = cloudUrl;
       }
 
@@ -71,7 +64,7 @@ const RoomManager: React.FC<RoomManagerProps> = ({
         type: formData.type || roomTypes[0] || 'Individual',
         status: (formData.status as any) || 'Disponible',
         price: Math.abs(Number(formData.price)) || 0,
-        imageUrl: finalImageUrl,
+        image_url: finalImageUrl,
       };
 
       if (isAdding) {
@@ -80,6 +73,9 @@ const RoomManager: React.FC<RoomManagerProps> = ({
         onUpdateRoom({ ...editingRoom, ...roomToSave } as Room);
       }
       closeModal();
+    } catch (err) {
+      console.error("Save error:", err);
+      alert("Error al guardar en la nube.");
     } finally {
       setIsUploading(false);
     }
@@ -151,7 +147,7 @@ const RoomManager: React.FC<RoomManagerProps> = ({
       if (ctx) {
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
-        setFormData(prev => ({ ...prev, imageUrl: dataUrl }));
+        setFormData(prev => ({ ...prev, image_url: dataUrl }));
         stopCamera();
       }
     }
@@ -166,7 +162,6 @@ const RoomManager: React.FC<RoomManagerProps> = ({
 
   return (
     <div className="space-y-8">
-      {/* Listado de habitaciones */}
       <div className="flex justify-between items-center flex-wrap gap-4 bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm">
         <div>
           <h2 className="text-xl font-black text-gray-800 tracking-tight">Inventario en la Nube</h2>
@@ -187,7 +182,7 @@ const RoomManager: React.FC<RoomManagerProps> = ({
             <div key={room.id} className="bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden group hover:shadow-xl transition-all duration-500 flex flex-col">
               <div className="relative h-64 overflow-hidden">
                 <img 
-                  src={room.imageUrl || `https://picsum.photos/seed/room${room.id}/800/600`} 
+                  src={room.image_url || `https://picsum.photos/seed/room${room.id}/800/600`} 
                   alt={room.number} 
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" 
                 />
@@ -228,7 +223,6 @@ const RoomManager: React.FC<RoomManagerProps> = ({
         })}
       </div>
 
-      {/* Modal de Edición/Añadir Habitación */}
       {(editingRoom || isAdding) && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-50 p-4 overflow-y-auto">
           <div className="bg-white rounded-[3rem] p-10 max-w-2xl w-full shadow-2xl my-auto relative">
@@ -259,7 +253,7 @@ const RoomManager: React.FC<RoomManagerProps> = ({
                     ) : (
                       <>
                         <img 
-                          src={formData.imageUrl || 'https://images.unsplash.com/photo-1611892440504-42a792e24d32?w=800'} 
+                          src={formData.image_url || 'https://images.unsplash.com/photo-1611892440504-42a792e24d32?w=800'} 
                           className="w-full h-full object-cover" 
                           alt="Preview"
                         />
@@ -316,6 +310,7 @@ const RoomManager: React.FC<RoomManagerProps> = ({
           </div>
         </div>
       )}
+      <canvas ref={canvasRef} className="hidden" />
     </div>
   );
 };

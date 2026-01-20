@@ -21,12 +21,12 @@ const Calendar: React.FC<CalendarProps> = ({ reservations, rooms, guests, onAddR
   
   // Form State
   const [formData, setFormData] = useState<Partial<Reservation>>({
-    guestId: '',
-    roomId: '',
-    checkIn: '',
-    checkOut: '',
+    guest_id: '',
+    room_id: '',
+    check_in: '',
+    check_out: '',
     status: 'Confirmada',
-    totalPrice: 0
+    total_price: 0
   });
 
   // Generar array de 14 días a partir de la fecha de inicio
@@ -40,7 +40,7 @@ const Calendar: React.FC<CalendarProps> = ({ reservations, rooms, guests, onAddR
   }, [startDate]);
 
   const sortedReservations = useMemo(() => {
-    return [...reservations].sort((a, b) => new Date(a.checkIn).getTime() - new Date(b.checkIn).getTime());
+    return [...reservations].sort((a, b) => new Date(a.check_in).getTime() - new Date(b.check_in).getTime());
   }, [reservations]);
 
   // Navegación
@@ -64,37 +64,37 @@ const Calendar: React.FC<CalendarProps> = ({ reservations, rooms, guests, onAddR
 
   // Cálculo automático de precio y duración
   useEffect(() => {
-    if ((modalMode === 'add' || modalMode === 'edit') && formData.checkIn && formData.checkOut && formData.roomId) {
-      const room = rooms.find(r => r.id === formData.roomId);
+    if ((modalMode === 'add' || modalMode === 'edit') && formData.check_in && formData.check_out && formData.room_id) {
+      const room = rooms.find(r => r.id === formData.room_id);
       if (room) {
-        const start = new Date(formData.checkIn);
-        const end = new Date(formData.checkOut);
+        const start = new Date(formData.check_in);
+        const end = new Date(formData.check_out);
         const diffTime = end.getTime() - start.getTime();
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
         
         if (diffDays > 0) {
-          setFormData(prev => ({ ...prev, totalPrice: diffDays * room.price }));
+          setFormData(prev => ({ ...prev, total_price: diffDays * room.price }));
         } else {
-          setFormData(prev => ({ ...prev, totalPrice: 0 }));
+          setFormData(prev => ({ ...prev, total_price: 0 }));
         }
       }
     }
-  }, [formData.checkIn, formData.checkOut, formData.roomId, modalMode, rooms]);
+  }, [formData.check_in, formData.check_out, formData.room_id, modalMode, rooms]);
 
   const handleOpenAdd = (roomId: string, date: Date) => {
-    const checkIn = date.toISOString().split('T')[0];
+    const check_in = date.toISOString().split('T')[0];
     const checkOutDate = new Date(date);
     checkOutDate.setDate(date.getDate() + 1);
-    const checkOut = checkOutDate.toISOString().split('T')[0];
+    const check_out = checkOutDate.toISOString().split('T')[0];
     const room = rooms.find(r => r.id === roomId);
 
     setFormData({
-      guestId: guests[0]?.id || '',
-      roomId,
-      checkIn,
-      checkOut,
+      guest_id: guests[0]?.id || '',
+      room_id: roomId,
+      check_in,
+      check_out,
       status: 'Confirmada',
-      totalPrice: room ? room.price : 0
+      total_price: room ? room.price : 0
     });
     setModalMode('add');
   };
@@ -123,11 +123,11 @@ const Calendar: React.FC<CalendarProps> = ({ reservations, rooms, guests, onAddR
   };
 
   const getReservationDetails = (res: Reservation) => {
-    const guest = guests.find(g => g.id === res.guestId);
-    const room = rooms.find(r => r.id === res.roomId);
+    const guest = guests.find(g => g.id === res.guest_id);
+    const room = rooms.find(r => r.id === res.room_id);
     
-    const start = new Date(res.checkIn + 'T00:00:00');
-    const end = new Date(res.checkOut + 'T00:00:00');
+    const start = new Date(res.check_in + 'T00:00:00');
+    const end = new Date(res.check_out + 'T00:00:00');
     const nights = Math.ceil((end.getTime() - start.getTime()) / (1000 * 3600 * 24));
 
     return { guest, room, reservation: res, nights };
@@ -151,7 +151,6 @@ const Calendar: React.FC<CalendarProps> = ({ reservations, rooms, guests, onAddR
 
   return (
     <div className="space-y-6">
-      {/* Barra de Navegación y Control */}
       <div className="flex flex-col lg:flex-row justify-between items-center bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm gap-6">
         <div className="flex items-center space-x-4">
           <div className="flex bg-gray-100 p-1 rounded-2xl">
@@ -195,11 +194,8 @@ const Calendar: React.FC<CalendarProps> = ({ reservations, rooms, guests, onAddR
 
       {viewType === 'timeline' ? (
         <div className="relative bg-white rounded-[3rem] shadow-sm border border-gray-100 overflow-hidden">
-          {/* Timeline Wrapper con Scroll Horizontal */}
           <div className="overflow-x-auto custom-scrollbar">
             <div className="min-w-[1600px] flex flex-col">
-              
-              {/* Header de Días */}
               <div className="flex border-b border-gray-100 bg-gray-50/50 sticky top-0 z-30">
                 <div className="w-64 shrink-0 p-6 border-r border-gray-100 font-black text-gray-400 uppercase text-[10px] tracking-[0.2em] flex items-center justify-center bg-gray-50">
                   Habitaciones
@@ -219,11 +215,9 @@ const Calendar: React.FC<CalendarProps> = ({ reservations, rooms, guests, onAddR
                 </div>
               </div>
 
-              {/* Grid de Habitaciones */}
               <div className="flex flex-col">
                 {rooms.map(room => (
                   <div key={room.id} className="flex border-b border-gray-100 last:border-b-0 group">
-                    {/* Sidebar de Habitación (Sticky Horizontal) */}
                     <div className="w-64 shrink-0 p-6 border-r border-gray-100 flex items-center space-x-4 bg-white group-hover:bg-gray-50 transition-colors z-20">
                       <div className={`w-3 h-3 rounded-full shrink-0 ${roomStatusColors[room.status] || 'bg-gray-300'} shadow-sm`}></div>
                       <div className="truncate">
@@ -232,7 +226,6 @@ const Calendar: React.FC<CalendarProps> = ({ reservations, rooms, guests, onAddR
                       </div>
                     </div>
 
-                    {/* Fila de Días de la Habitación */}
                     <div className="flex-1 flex relative h-32 bg-white group-hover:bg-indigo-50/5">
                       {days.map((day, i) => (
                         <div 
@@ -242,13 +235,11 @@ const Calendar: React.FC<CalendarProps> = ({ reservations, rooms, guests, onAddR
                         />
                       ))}
 
-                      {/* Renderizado de Reservas sobre la Fila */}
-                      {reservations.filter(res => res.roomId === room.id).map(res => {
-                        const guest = guests.find(g => g.id === res.guestId);
-                        const checkInDate = new Date(res.checkIn + 'T00:00:00');
-                        const checkOutDate = new Date(res.checkOut + 'T00:00:00');
+                      {reservations.filter(res => res.room_id === room.id).map(res => {
+                        const guest = guests.find(g => g.id === res.guest_id);
+                        const checkInDate = new Date(res.check_in + 'T00:00:00');
+                        const checkOutDate = new Date(res.check_out + 'T00:00:00');
                         
-                        // Ajustar fechas al rango visible
                         const viewStart = days[0];
                         const viewEnd = days[13];
 
@@ -279,7 +270,7 @@ const Calendar: React.FC<CalendarProps> = ({ reservations, rooms, guests, onAddR
                               <span className="truncate tracking-tight">{guest?.name}</span>
                             </div>
                             <div className="hidden lg:flex flex-col items-end shrink-0 opacity-80 text-[8px] uppercase font-black">
-                               <span>${res.totalPrice}</span>
+                               <span>${res.total_price}</span>
                                <span className="bg-black/10 px-1.5 rounded mt-0.5">{res.status}</span>
                             </div>
                           </button>
@@ -293,12 +284,11 @@ const Calendar: React.FC<CalendarProps> = ({ reservations, rooms, guests, onAddR
           </div>
         </div>
       ) : (
-        /* Vista Agenda Refinada */
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
           {sortedReservations.length > 0 ? (
             sortedReservations.map(res => {
               const { guest, room, nights } = getReservationDetails(res);
-              const checkInDate = new Date(res.checkIn + 'T00:00:00');
+              const checkInDate = new Date(res.check_in + 'T00:00:00');
               const isToday = checkInDate.toDateString() === new Date().toDateString();
               
               return (
@@ -339,11 +329,11 @@ const Calendar: React.FC<CalendarProps> = ({ reservations, rooms, guests, onAddR
                     <div className="grid grid-cols-2 gap-4 py-6 border-y border-gray-50">
                        <div>
                           <p className="text-[9px] uppercase text-gray-400 font-black tracking-widest mb-1.5">Check-in</p>
-                          <p className="text-sm font-black text-gray-800">{res.checkIn}</p>
+                          <p className="text-sm font-black text-gray-800">{res.check_in}</p>
                        </div>
                        <div className="text-right">
                           <p className="text-[9px] uppercase text-gray-400 font-black tracking-widest mb-1.5">Check-out</p>
-                          <p className="text-sm font-black text-gray-800">{res.checkOut}</p>
+                          <p className="text-sm font-black text-gray-800">{res.check_out}</p>
                        </div>
                     </div>
                   </div>
@@ -351,7 +341,7 @@ const Calendar: React.FC<CalendarProps> = ({ reservations, rooms, guests, onAddR
                   <div className="mt-8 flex justify-between items-center">
                     <div className="flex flex-col">
                       <p className="text-xs text-gray-400 font-black uppercase tracking-widest">Total</p>
-                      <p className="text-3xl font-black text-gray-900 tracking-tighter">${res.totalPrice}</p>
+                      <p className="text-3xl font-black text-gray-900 tracking-tighter">${res.total_price}</p>
                     </div>
                     <div className="w-14 h-14 bg-gray-50 rounded-2xl flex items-center justify-center text-gray-300 group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-sm">
                       <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
@@ -372,7 +362,6 @@ const Calendar: React.FC<CalendarProps> = ({ reservations, rooms, guests, onAddR
         </div>
       )}
 
-      {/* Modales de Gestión de Reserva */}
       {(modalMode === 'view' && selectedData) && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md flex items-center justify-center z-50 p-6 animate-in fade-in duration-300" onClick={() => setModalMode(null)}>
           <div 
@@ -399,7 +388,6 @@ const Calendar: React.FC<CalendarProps> = ({ reservations, rooms, guests, onAddR
             </div>
 
             <div className="space-y-10">
-              {/* Card de Huésped Principal */}
               <div className="bg-slate-50 rounded-[3rem] p-8 border border-slate-100 relative group overflow-hidden">
                 <div className="absolute inset-0 bg-indigo-600 opacity-0 group-hover:opacity-[0.02] transition-opacity"></div>
                 <div className="flex flex-col md:flex-row md:items-center gap-8 relative z-10">
@@ -411,7 +399,7 @@ const Calendar: React.FC<CalendarProps> = ({ reservations, rooms, guests, onAddR
                     <div className="flex flex-wrap gap-x-6 gap-y-2">
                       <div className="flex items-center space-x-2">
                         <svg className="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2" /></svg>
-                        <span className="text-xs font-black text-slate-500 uppercase tracking-wider">{selectedData.guest?.idNumber}</span>
+                        <span className="text-xs font-black text-slate-500 uppercase tracking-wider">{selectedData.guest?.id_number}</span>
                       </div>
                       <div className="flex items-center space-x-2">
                         <svg className="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
@@ -422,7 +410,6 @@ const Calendar: React.FC<CalendarProps> = ({ reservations, rooms, guests, onAddR
                 </div>
               </div>
 
-              {/* Grid de Detalles Operativos */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="p-8 bg-slate-50 rounded-[2.5rem] border border-slate-100 text-center">
                   <p className="text-[10px] font-black text-slate-400 uppercase mb-4 tracking-widest">Alojamiento</p>
@@ -436,17 +423,16 @@ const Calendar: React.FC<CalendarProps> = ({ reservations, rooms, guests, onAddR
                 </div>
                 <div className="p-8 bg-indigo-600 rounded-[2.5rem] shadow-xl shadow-indigo-100 text-center text-white">
                   <p className="text-[10px] font-black text-white/50 uppercase mb-4 tracking-widest">Total</p>
-                  <p className="font-black text-white text-3xl tracking-tighter leading-none">${selectedData.reservation.totalPrice}</p>
+                  <p className="font-black text-white text-3xl tracking-tighter leading-none">${selectedData.reservation.total_price}</p>
                   <p className="text-[10px] text-white/50 font-black mt-3 uppercase tracking-widest">Liquidación</p>
                 </div>
               </div>
 
-              {/* Itinerario de Fechas */}
               <div className="p-10 bg-slate-50 rounded-[3rem] border border-slate-100 relative">
                 <div className="flex items-center justify-between relative z-10">
                   <div className="text-center flex-1">
                     <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-3">Check-in</p>
-                    <p className="font-black text-slate-900 text-2xl tracking-tight">{selectedData.reservation.checkIn}</p>
+                    <p className="font-black text-slate-900 text-2xl tracking-tight">{selectedData.reservation.check_in}</p>
                     <p className="text-[9px] text-slate-400 font-bold mt-1.5 uppercase">14:00h</p>
                   </div>
                   <div className="flex flex-col items-center flex-1 px-8">
@@ -456,13 +442,12 @@ const Calendar: React.FC<CalendarProps> = ({ reservations, rooms, guests, onAddR
                   </div>
                   <div className="text-center flex-1">
                     <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest mb-3">Check-out</p>
-                    <p className="font-black text-slate-900 text-2xl tracking-tight">{selectedData.reservation.checkOut}</p>
+                    <p className="font-black text-slate-900 text-2xl tracking-tight">{selectedData.reservation.check_out}</p>
                     <p className="text-[9px] text-slate-400 font-bold mt-1.5 uppercase">11:00h</p>
                   </div>
                 </div>
               </div>
 
-              {/* Acciones del Modal */}
               <div className="flex gap-4 pt-4">
                 <button 
                   onClick={() => handleOpenEdit(selectedData.reservation)}
@@ -482,7 +467,6 @@ const Calendar: React.FC<CalendarProps> = ({ reservations, rooms, guests, onAddR
         </div>
       )}
 
-      {/* Modal Formulario (Add/Edit) */}
       {(modalMode === 'add' || modalMode === 'edit') && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xl flex items-center justify-center z-50 p-6" onClick={() => setModalMode(null)}>
           <div 
@@ -500,10 +484,11 @@ const Calendar: React.FC<CalendarProps> = ({ reservations, rooms, guests, onAddR
               <div className="space-y-2.5">
                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-2">Huésped</label>
                 <select 
-                  value={formData.guestId} 
-                  onChange={e => setFormData({...formData, guestId: e.target.value})}
+                  value={formData.guest_id} 
+                  onChange={e => setFormData({...formData, guest_id: e.target.value})}
                   className="w-full p-5 bg-slate-50 border border-slate-100 rounded-[1.8rem] focus:ring-4 focus:ring-indigo-500/10 focus:outline-none font-black text-gray-800 text-sm shadow-inner appearance-none"
                 >
+                  <option value="" disabled>Seleccionar</option>
                   {guests.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
                 </select>
               </div>
@@ -511,10 +496,11 @@ const Calendar: React.FC<CalendarProps> = ({ reservations, rooms, guests, onAddR
               <div className="space-y-2.5">
                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-2">Habitación</label>
                 <select 
-                  value={formData.roomId} 
-                  onChange={e => setFormData({...formData, roomId: e.target.value})}
+                  value={formData.room_id} 
+                  onChange={e => setFormData({...formData, room_id: e.target.value})}
                   className="w-full p-5 bg-slate-50 border border-slate-100 rounded-[1.8rem] focus:ring-4 focus:ring-indigo-500/10 focus:outline-none font-black text-gray-800 text-sm shadow-inner appearance-none"
                 >
+                  <option value="" disabled>Seleccionar</option>
                   {rooms.map(r => <option key={r.id} value={r.id}>Hab. {r.number} - ${r.price}</option>)}
                 </select>
               </div>
@@ -523,8 +509,8 @@ const Calendar: React.FC<CalendarProps> = ({ reservations, rooms, guests, onAddR
                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-2">Entrada</label>
                 <input 
                   type="date"
-                  value={formData.checkIn} 
-                  onChange={e => setFormData({...formData, checkIn: e.target.value})}
+                  value={formData.check_in} 
+                  onChange={e => setFormData({...formData, check_in: e.target.value})}
                   className="w-full p-5 bg-slate-50 border border-slate-100 rounded-[1.8rem] focus:ring-4 focus:ring-indigo-500/10 focus:outline-none font-black text-gray-800 text-sm shadow-inner"
                 />
               </div>
@@ -533,8 +519,8 @@ const Calendar: React.FC<CalendarProps> = ({ reservations, rooms, guests, onAddR
                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-2">Salida</label>
                 <input 
                   type="date"
-                  value={formData.checkOut} 
-                  onChange={e => setFormData({...formData, checkOut: e.target.value})}
+                  value={formData.check_out} 
+                  onChange={e => setFormData({...formData, check_out: e.target.value})}
                   className="w-full p-5 bg-slate-50 border border-slate-100 rounded-[1.8rem] focus:ring-4 focus:ring-indigo-500/10 focus:outline-none font-black text-gray-800 text-sm shadow-inner"
                 />
               </div>
@@ -556,7 +542,7 @@ const Calendar: React.FC<CalendarProps> = ({ reservations, rooms, guests, onAddR
               <div className="space-y-2.5">
                 <label className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] ml-2">Liquidación</label>
                 <div className="w-full p-5 bg-indigo-50 border border-indigo-100 rounded-[1.8rem] font-black text-indigo-600 flex items-center justify-center text-2xl tracking-tighter shadow-sm">
-                   ${formData.totalPrice}
+                   ${formData.total_price}
                 </div>
               </div>
             </div>
@@ -571,7 +557,7 @@ const Calendar: React.FC<CalendarProps> = ({ reservations, rooms, guests, onAddR
               </button>
               <button 
                 type="button" 
-                disabled={!formData.totalPrice || (formData.totalPrice <= 0)}
+                disabled={!formData.total_price || (formData.total_price <= 0)}
                 onClick={handleSave}
                 className="flex-1 px-8 py-6 bg-indigo-600 text-white rounded-[2.5rem] font-black hover:bg-indigo-700 shadow-2xl shadow-indigo-100 active:scale-95 transition-all uppercase tracking-widest text-xs disabled:opacity-50"
               >

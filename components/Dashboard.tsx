@@ -22,16 +22,16 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
   };
 
   const stats = [
-    { label: 'Ocupación', value: `${(data.rooms.filter(r => r.status === 'Ocupada').length / data.rooms.length * 100).toFixed(0)}%`, icon: '🏠', color: 'bg-blue-500' },
-    { label: 'Check-ins Hoy', value: '3', icon: '🔑', color: 'bg-green-500' },
+    { label: 'Ocupación', value: data.rooms.length > 0 ? `${(data.rooms.filter(r => r.status === 'Ocupada').length / data.rooms.length * 100).toFixed(0)}%` : '0%', icon: '🏠', color: 'bg-blue-500' },
+    { label: 'Check-ins Hoy', value: data.reservations.filter(r => r.check_in === new Date().toISOString().split('T')[0]).length.toString(), icon: '🔑', color: 'bg-green-500' },
     { label: 'Limpieza Pendiente', value: data.rooms.filter(r => r.status === 'Limpieza').length, icon: '🧹', color: 'bg-yellow-500' },
     { label: 'Incidencias', value: data.maintenance.filter(m => m.status !== 'Completado').length, icon: '🛠️', color: 'bg-red-500' },
   ];
 
   const handleShare = async () => {
-    const occupation = (data.rooms.filter(r => r.status === 'Ocupada').length / data.rooms.length * 100).toFixed(0);
+    const occupation = data.rooms.length > 0 ? (data.rooms.filter(r => r.status === 'Ocupada').length / data.rooms.length * 100).toFixed(0) : 0;
     const cleaning = data.rooms.filter(r => r.status === 'Limpieza').length;
-    const maintenance = data.maintenance.filter(m => m.status !== 'Completado').length;
+    const maintenanceCount = data.maintenance.filter(m => m.status !== 'Completado').length;
     
     let report = `📊 INFORME HOSTALAI - ${new Date().toLocaleDateString()}\n`;
     report += `-----------------------------------\n\n`;
@@ -39,10 +39,10 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
     report += `📈 ESTADO GENERAL:\n`;
     report += `- Ocupación: ${occupation}%\n`;
     report += `- Limpiezas pendientes: ${cleaning}\n`;
-    report += `- Incidencias activas: ${maintenance}\n\n`;
+    report += `- Incidencias activas: ${maintenanceCount}\n\n`;
     
     report += `🏠 INVENTARIO DE HABITACIONES:\n`;
-    data.rooms.sort((a, b) => a.number.localeCompare(b.number)).forEach(room => {
+    [...data.rooms].sort((a, b) => a.number.localeCompare(b.number)).forEach(room => {
       report += `- Hab. ${room.number} (${room.type}): ${statusLabels[room.status] || room.status}\n`;
     });
 
@@ -58,8 +58,8 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
 
     report += `\n🏨 ÚLTIMAS RESERVAS:\n`;
     data.reservations.slice(0, 5).forEach(res => {
-      const guest = data.guests.find(g => g.id === res.guestId);
-      const room = data.rooms.find(r => r.id === res.roomId);
+      const guest = data.guests.find(g => g.id === res.guest_id);
+      const room = data.rooms.find(r => r.id === res.room_id);
       report += `- ${guest?.name || 'Huésped'}: Hab. ${room?.number} (${res.status})\n`;
     });
 
@@ -81,7 +81,6 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
 
   return (
     <div className="space-y-6">
-      {/* Header del Dashboard con Acción de Compartir */}
       <div className="flex justify-between items-center bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm">
         <div>
           <h2 className="text-xl font-black text-gray-800 tracking-tight">Resumen de Operaciones</h2>
@@ -125,8 +124,8 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
           </div>
           <div className="space-y-4">
             {data.reservations.slice(0, 5).map(res => {
-              const guest = data.guests.find(g => g.id === res.guestId);
-              const room = data.rooms.find(r => r.id === res.roomId);
+              const guest = data.guests.find(g => g.id === res.guest_id);
+              const room = data.rooms.find(r => r.id === res.room_id);
               return (
                 <div key={res.id} className="flex justify-between items-center p-4 hover:bg-gray-50 rounded-2xl transition-all border border-transparent hover:border-gray-100 group">
                   <div className="flex items-center space-x-4">
@@ -135,7 +134,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
                     </div>
                     <div>
                       <p className="font-bold text-gray-800">{guest?.name}</p>
-                      <p className="text-xs text-gray-400 font-medium tracking-tight">Hab. {room?.number} • {res.checkIn} al {res.checkOut}</p>
+                      <p className="text-xs text-gray-400 font-medium tracking-tight">Hab. {room?.number} • {res.check_in} al {res.check_out}</p>
                     </div>
                   </div>
                   <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider ${

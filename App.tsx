@@ -6,6 +6,7 @@ import Calendar from './components/Calendar';
 import GuestList from './components/GuestList';
 import RoomManager from './components/RoomManager';
 import MaintenanceTracker from './components/MaintenanceTracker';
+import AIHub from './components/AIHub';
 import Sidebar from './components/Sidebar';
 import Login from './components/Login';
 import { supabase } from './services/supabase';
@@ -39,31 +40,28 @@ const App: React.FC = () => {
   const fetchAllData = async () => {
     setLoading(true);
     try {
-      const results = await Promise.allSettled([
+      const [roomsRes, guestsRes, reservationsRes, maintenanceRes] = await Promise.all([
         supabase.from('rooms').select('*').order('number'),
         supabase.from('guests').select('*').order('name'),
         supabase.from('reservations').select('*'),
-        supabase.from('maintenance_tasks').select('*')
+        supabase.from('maintenance_tasks').select('*').order('created_at', { ascending: false })
       ]);
 
-      results.forEach((res, index) => {
-        if (res.status === 'fulfilled') {
-          const { data, error } = res.value;
-          if (error) {
-             console.error(`Error en el índice de carga ${index}:`, error);
-             if (error.code === 'PGRST205') {
-               console.warn("Error de caché de esquema (PGRST205). Las tablas son nuevas. Intenta refrescar el Dashboard de Supabase o la app en 30 segundos.");
-             }
-          } else if (data) {
-            if (index === 0) setRooms(data);
-            if (index === 1) setGuests(data);
-            if (index === 2) setReservations(data);
-            if (index === 3) setMaintenance(data);
-          }
-        }
-      });
+      if (roomsRes.data) setRooms(roomsRes.data);
+      if (guestsRes.data) setGuests(guestsRes.data);
+      if (reservationsRes.data) setReservations(reservationsRes.data);
+      if (maintenanceRes.data) setMaintenance(maintenanceRes.data);
+
+      if (roomsRes.error || guestsRes.error || reservationsRes.error || maintenanceRes.error) {
+        console.error("Errores en carga:", { 
+          rooms: roomsRes.error, 
+          guests: guestsRes.error, 
+          reservations: reservationsRes.error, 
+          maintenance: maintenanceRes.error 
+        });
+      }
     } catch (err) {
-      console.error("Error crítico al obtener datos de la nube:", err);
+      console.error("Error crítico al obtener datos:", err);
     } finally {
       setLoading(false);
     }
@@ -175,6 +173,7 @@ const App: React.FC = () => {
           }} 
         />
       );
+      case 'AI': return <AIHub />;
       default: return <Dashboard data={contextValue} />;
     }
   };
@@ -187,7 +186,7 @@ const App: React.FC = () => {
       <main className="flex-1 overflow-y-auto p-4 md:p-8">
         <header className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-black text-gray-800 tracking-tight">{currentView}</h1>
+            <h1 className="text-3xl font-black text-gray-800 tracking-tight">{currentView === 'AI' ? 'Asistente de Hostal' : currentView}</h1>
             <div className="flex items-center space-x-2 mt-1">
                <div className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse"></div>
                <p className="text-[10px] text-indigo-600 font-bold uppercase tracking-widest">Supabase Cloud Sync</p>
