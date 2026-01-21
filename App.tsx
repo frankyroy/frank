@@ -47,21 +47,18 @@ const App: React.FC = () => {
         supabase.from('maintenance_tasks').select('*').order('created_at', { ascending: false })
       ]);
 
+      if (roomsRes.error) console.error("Error al cargar Habitaciones:", roomsRes.error.message);
+      if (guestsRes.error) console.error("Error al cargar Huéspedes:", guestsRes.error.message);
+      if (reservationsRes.error) console.error("Error al cargar Reservas:", reservationsRes.error.message);
+      if (maintenanceRes.error) console.error("Error al cargar Mantenimiento:", maintenanceRes.error.message);
+
       if (roomsRes.data) setRooms(roomsRes.data);
       if (guestsRes.data) setGuests(guestsRes.data);
       if (reservationsRes.data) setReservations(reservationsRes.data);
       if (maintenanceRes.data) setMaintenance(maintenanceRes.data);
 
-      if (roomsRes.error || guestsRes.error || reservationsRes.error || maintenanceRes.error) {
-        console.error("Errores en carga:", { 
-          rooms: roomsRes.error, 
-          guests: guestsRes.error, 
-          reservations: reservationsRes.error, 
-          maintenance: maintenanceRes.error 
-        });
-      }
     } catch (err) {
-      console.error("Error crítico al obtener datos:", err);
+      console.error("Error fatal en la comunicación con Supabase:", err);
     } finally {
       setLoading(false);
     }
@@ -80,7 +77,7 @@ const App: React.FC = () => {
   };
 
   const handleDeleteRoom = async (roomId: string) => {
-    if (window.confirm('¿Eliminar esta habitación de la nube?')) {
+    if (window.confirm('¿Eliminar esta habitación de la nube permanentemente?')) {
       const { error } = await supabase.from('rooms').delete().eq('id', roomId);
       if (error) throw error;
       setRooms(prev => prev.filter(r => r.id !== roomId));
@@ -118,8 +115,9 @@ const App: React.FC = () => {
 
   const renderView = () => {
     if (loading) return (
-      <div className="flex items-center justify-center h-64">
+      <div className="flex flex-col items-center justify-center h-64 space-y-4">
         <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+        <p className="text-xs font-black text-indigo-400 uppercase tracking-widest animate-pulse">Sincronizando con Cloud...</p>
       </div>
     );
 
@@ -137,6 +135,7 @@ const App: React.FC = () => {
       case 'Guests': return (
         <GuestList 
           guests={guests} 
+          rooms={rooms}
           reservations={reservations}
           onAddGuest={handleAddGuest}
           onUpdateGuest={handleUpdateGuest}
@@ -185,19 +184,19 @@ const App: React.FC = () => {
       <Sidebar currentView={currentView} setView={setCurrentView} onLogout={() => supabase.auth.signOut()} />
       <main className="flex-1 overflow-y-auto p-4 md:p-8">
         <header className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-black text-gray-800 tracking-tight">{currentView === 'AI' ? 'Asistente de Hostal' : currentView}</h1>
+          <div className="animate-in fade-in slide-in-from-left duration-500">
+            <h1 className="text-3xl font-black text-gray-800 tracking-tight">{currentView === 'AI' ? 'Asistente de Hostal' : (currentView === 'Guests' ? 'Directorio de Huéspedes' : currentView)}</h1>
             <div className="flex items-center space-x-2 mt-1">
-               <div className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse"></div>
-               <p className="text-[10px] text-indigo-600 font-bold uppercase tracking-widest">Supabase Cloud Sync</p>
+               <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+               <p className="text-[10px] text-emerald-600 font-bold uppercase tracking-widest">Supabase Cloud Live</p>
             </div>
           </div>
-          <div className="flex items-center space-x-4">
-             <button onClick={fetchAllData} className="text-[9px] font-black text-indigo-600 hover:text-indigo-800 bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100">REFRESCAR</button>
-             <span className="text-sm font-semibold text-gray-400 capitalize bg-white px-4 py-2 rounded-xl shadow-sm border border-gray-100 hidden sm:block">
+          <div className="flex items-center space-x-4 animate-in fade-in slide-in-from-right duration-500">
+             <button onClick={fetchAllData} className="text-[9px] font-black text-indigo-600 hover:text-indigo-800 bg-indigo-50 px-4 py-2 rounded-xl border border-indigo-100 transition-all active:scale-95 shadow-sm">REFRESCAR</button>
+             <span className="text-sm font-semibold text-gray-400 capitalize bg-white px-4 py-2 rounded-xl shadow-sm border border-gray-100 hidden lg:block">
                {new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
              </span>
-             <div className="h-12 w-12 rounded-2xl bg-indigo-600 flex items-center justify-center text-white font-black shadow-lg shadow-indigo-100 border-2 border-white">
+             <div className="h-12 w-12 rounded-2xl bg-indigo-600 flex items-center justify-center text-white font-black shadow-lg shadow-indigo-100 border-2 border-white ring-4 ring-indigo-50">
                {session.user?.email?.charAt(0).toUpperCase()}
              </div>
           </div>

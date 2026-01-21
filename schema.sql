@@ -1,9 +1,9 @@
 
 -- ==========================================
--- SCRIPT DE CONFIGURACIÓN HOSTALAI CLOUD (VERSIÓN FINAL)
+-- SCRIPT DE CONFIGURACIÓN HOSTALAI CLOUD (RE-SYNC TOTAL)
 -- ==========================================
 
--- 1. LIMPIEZA TOTAL PARA EVITAR COLISIONES
+-- 1. LIMPIEZA RADICAL (Cuidado: Borra datos existentes)
 DROP TABLE IF EXISTS public.maintenance_tasks CASCADE;
 DROP TABLE IF EXISTS public.reservations CASCADE;
 DROP TABLE IF EXISTS public.guests CASCADE;
@@ -52,17 +52,18 @@ CREATE TABLE public.maintenance_tasks (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 
--- 6. SEGURIDAD DE FILA (RLS)
+-- 6. HABILITAR SEGURIDAD (RLS)
 ALTER TABLE public.rooms ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.guests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.reservations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.maintenance_tasks ENABLE ROW LEVEL SECURITY;
 
--- 7. POLÍTICAS DE ACCESO (Permitir todo a usuarios autenticados)
-CREATE POLICY "Full access rooms" ON public.rooms FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY "Full access guests" ON public.guests FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY "Full access reservations" ON public.reservations FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY "Full access maintenance" ON public.maintenance_tasks FOR ALL TO authenticated USING (true) WITH CHECK (true);
+-- 7. POLÍTICAS DE ACCESO UNIVERSAL (Para desarrollo y simplicidad en HostalAI)
+CREATE POLICY "Acceso total rooms" ON public.rooms FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "Acceso total guests" ON public.guests FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "Acceso total reservations" ON public.reservations FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "Acceso total maintenance" ON public.maintenance_tasks FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
--- 8. RECARGA DE CACHÉ DE LA API (SOLUCIONA EL ERROR PGRST204)
+-- 8. RECARGA DE CACHÉ DE POSTGREST (CRÍTICO PARA VERCEL/CLOUD)
+-- Este comando fuerza a Supabase a reconocer las nuevas columnas inmediatamente.
 NOTIFY pgrst, 'reload schema';

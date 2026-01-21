@@ -13,6 +13,26 @@ interface DashboardProps {
 
 const Dashboard: React.FC<DashboardProps> = ({ data }) => {
   const [showCopyBadge, setShowCopyBadge] = useState(false);
+  const [showTodayCheckinsModal, setShowTodayCheckinsModal] = useState(false);
+  const [showOccupiedRoomsModal, setShowOccupiedRoomsModal] = useState(false);
+
+  // Fecha local en formato YYYY-MM-DD
+  const today = new Date();
+  const todayStr = today.toLocaleDateString('sv-SE');
+  
+  // Check-ins de hoy: Entradas previstas o ya realizadas hoy
+  const todayCheckins = data.reservations.filter(r => 
+    r.check_in === todayStr && (r.status === 'Confirmada' || r.status === 'Check-in')
+  );
+
+  // Ocupación Real: Habitaciones con una reserva activa (Check-in)
+  const occupiedRoomIds = new Set(data.reservations.filter(r => r.status === 'Check-in').map(r => r.room_id));
+  const activeCheckinsCount = occupiedRoomIds.size;
+  const totalRoomsCount = data.rooms.length;
+  
+  const occupancyPercent = totalRoomsCount > 0 
+    ? Math.round((activeCheckinsCount / totalRoomsCount) * 100) 
+    : 0;
 
   const statusLabels: Record<string, string> = {
     'Disponible': 'Libre',
@@ -22,56 +42,78 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
   };
 
   const stats = [
-    { label: 'Ocupación', value: data.rooms.length > 0 ? `${(data.rooms.filter(r => r.status === 'Ocupada').length / data.rooms.length * 100).toFixed(0)}%` : '0%', icon: '🏠', color: 'bg-blue-500' },
-    { label: 'Check-ins Hoy', value: data.reservations.filter(r => r.check_in === new Date().toISOString().split('T')[0]).length.toString(), icon: '🔑', color: 'bg-green-500' },
-    { label: 'Limpieza Pendiente', value: data.rooms.filter(r => r.status === 'Limpieza').length, icon: '🧹', color: 'bg-yellow-500' },
-    { label: 'Incidencias', value: data.maintenance.filter(m => m.status !== 'Completado').length, icon: '🛠️', color: 'bg-red-500' },
+    { 
+      label: 'Ocupación Real', 
+      value: `${occupancyPercent}%`,
+      subValue: `(${activeCheckinsCount}/${totalRoomsCount} habs)`,
+      icon: '🏠', 
+      color: 'bg-blue-600', 
+      id: 'occ', 
+      interactive: true 
+    },
+    { 
+      label: 'Check-ins Hoy', 
+      value: todayCheckins.length.toString(), 
+      subValue: 'Entradas previstas',
+      icon: '🔑', 
+      color: 'bg-emerald-500', 
+      id: 'checkins', 
+      interactive: true 
+    },
+    { 
+      label: 'Limpieza', 
+      value: data.rooms.filter(r => r.status === 'Limpieza').length.toString(), 
+      subValue: 'Pendientes',
+      icon: '🧹', 
+      color: 'bg-yellow-500', 
+      id: 'cleaning' 
+    },
+    { 
+      label: 'Incidencias', 
+      value: data.maintenance.filter(m => m.status !== 'Completado').length.toString(), 
+      subValue: 'Por reparar',
+      icon: '🛠️', 
+      color: 'bg-rose-500', 
+      id: 'issues' 
+    },
   ];
 
   const handleShare = async () => {
-    const occupation = data.rooms.length > 0 ? (data.rooms.filter(r => r.status === 'Ocupada').length / data.rooms.length * 100).toFixed(0) : 0;
     const cleaning = data.rooms.filter(r => r.status === 'Limpieza').length;
     const maintenanceCount = data.maintenance.filter(m => m.status !== 'Completado').length;
     
-    let report = `📊 INFORME HOSTALAI - ${new Date().toLocaleDateString()}\n`;
+    let report = `📊 INFORME HOSTALAI - ${new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}\n`;
     report += `-----------------------------------\n\n`;
+    report += `📈 ESTADO OPERATIVO:\n`;
+    report += `- Ocupación Real: ${occupancyPercent}%\n`;
+    report += `- Huéspedes hospedados: ${activeCheckinsCount} de ${totalRoomsCount} habs.\n`;
+    report += `- Check-ins para hoy: ${todayCheckins.length}\n`;
+    report += `- Habitaciones en limpieza: ${cleaning}\n`;
+    report += `- Incidencias de mantenimiento: ${maintenanceCount}\n\n`;
     
-    report += `📈 ESTADO GENERAL:\n`;
-    report += `- Ocupación: ${occupation}%\n`;
-    report += `- Limpiezas pendientes: ${cleaning}\n`;
-    report += `- Incidencias activas: ${maintenanceCount}\n\n`;
-    
-    report += `🏠 INVENTARIO DE HABITACIONES:\n`;
+    report += `📅 RESERVAS RECIENTES:\n`;
+    if (data.reservations.length > 0) {
+      data.reservations.slice(0, 5).forEach(res => {
+        const guest = data.guests.find(g => g.id === res.guest_id);
+        const room = data.rooms.find(r => r.id === res.room_id);
+        report += `- ${guest?.name || 'Huésped'} | Hab. ${room?.number || '??'} | ${res.check_in} al ${res.check_out} (${res.status})\n`;
+      });
+    } else {
+      report += `- No hay reservas recientes registradas.\n`;
+    }
+    report += `\n`;
+
+    report += `🏠 DETALLE HABITACIONES:\n`;
     [...data.rooms].sort((a, b) => a.number.localeCompare(b.number)).forEach(room => {
-      report += `- Hab. ${room.number} (${room.type}): ${statusLabels[room.status] || room.status}\n`;
-    });
-
-    const counts = data.rooms.reduce((acc, room) => {
-      acc[room.status] = (acc[room.status] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-
-    report += `\nRESUMEN DE ESTADOS:\n`;
-    Object.entries(counts).forEach(([status, count]) => {
-      report += `- ${statusLabels[status] || status}: ${count}\n`;
-    });
-
-    report += `\n🏨 ÚLTIMAS RESERVAS:\n`;
-    data.reservations.slice(0, 5).forEach(res => {
-      const guest = data.guests.find(g => g.id === res.guest_id);
-      const room = data.rooms.find(r => r.id === res.room_id);
-      report += `- ${guest?.name || 'Huésped'}: Hab. ${room?.number} (${res.status})\n`;
+      const isOccupied = occupiedRoomIds.has(room.id);
+      const displayStatus = isOccupied ? 'Ocupada' : room.status;
+      report += `- Hab. ${room.number}: ${statusLabels[displayStatus] || displayStatus}\n`;
     });
 
     if (navigator.share) {
       try {
-        await navigator.share({
-          title: 'Informe HostalAI',
-          text: report,
-        });
-      } catch (err) {
-        console.error("Error al compartir", err);
-      }
+        await navigator.share({ title: 'Informe HostalAI', text: report });
+      } catch (err) { console.error("Error al compartir", err); }
     } else {
       await navigator.clipboard.writeText(report);
       setShowCopyBadge(true);
@@ -84,7 +126,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
       <div className="flex justify-between items-center bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm">
         <div>
           <h2 className="text-xl font-black text-gray-800 tracking-tight">Resumen de Operaciones</h2>
-          <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest mt-0.5">Visión global de tu hostal</p>
+          <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest mt-0.5">Visión global • Hoy: {today.toLocaleDateString('es-ES', { day: 'numeric', month: 'long' })}</p>
         </div>
         <div className="flex items-center space-x-3">
           {showCopyBadge && (
@@ -106,13 +148,24 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {stats.map((stat, i) => (
-          <div key={i} className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 flex items-center space-x-4">
-            <div className={`${stat.color} text-white p-4 rounded-2xl text-2xl shadow-lg`}>{stat.icon}</div>
-            <div>
-              <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">{stat.label}</p>
-              <p className="text-3xl font-black text-gray-800">{stat.value}</p>
+          <button 
+            key={i} 
+            onClick={() => {
+              if (stat.id === 'checkins') setShowTodayCheckinsModal(true);
+              if (stat.id === 'occ') setShowOccupiedRoomsModal(true);
+            }}
+            disabled={!stat.interactive}
+            className={`bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 flex items-center space-x-4 text-left transition-all ${stat.interactive ? 'hover:shadow-lg hover:scale-[1.02] active:scale-95 cursor-pointer' : 'cursor-default'}`}
+          >
+            <div className={`${stat.color} text-white p-4 rounded-2xl text-2xl shadow-lg shrink-0`}>{stat.icon}</div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[9px] text-gray-400 font-black uppercase tracking-widest truncate">{stat.label}</p>
+              <div className="flex items-baseline space-x-2">
+                <p className="text-2xl font-black text-gray-800 tracking-tighter">{stat.value}</p>
+                <p className="text-[9px] font-bold text-gray-400 truncate uppercase">{stat.subValue}</p>
+              </div>
             </div>
-          </div>
+          </button>
         ))}
       </div>
 
@@ -138,13 +191,18 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
                     </div>
                   </div>
                   <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                    res.status === 'Check-in' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
+                    res.status === 'Check-in' ? 'bg-indigo-600 text-white shadow-sm' : 
+                    res.status === 'Confirmada' ? 'bg-blue-100 text-blue-700' :
+                    res.status === 'Check-out' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-700'
                   }`}>
                     {res.status}
                   </span>
                 </div>
               );
             })}
+            {data.reservations.length === 0 && (
+              <p className="text-center py-8 text-gray-400 text-xs font-bold uppercase tracking-widest">No hay reservas recientes</p>
+            )}
           </div>
         </div>
 
@@ -154,22 +212,135 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
             <button className="text-xs font-bold text-indigo-600 hover:text-indigo-700 uppercase tracking-widest">Gestionar</button>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-            {data.rooms.map(room => (
-              <div key={room.id} className="p-5 border border-gray-50 bg-gray-50/30 rounded-3xl flex flex-col items-center justify-center text-center space-y-3 hover:bg-white hover:border-gray-100 hover:shadow-md transition-all">
-                <span className="text-lg font-black text-gray-800">Hab. {room.number}</span>
-                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{room.type}</span>
-                <div className={`w-full py-1.5 px-3 rounded-xl text-[9px] font-black uppercase tracking-wider ${
-                  room.status === 'Disponible' ? 'bg-emerald-100 text-emerald-600' :
-                  room.status === 'Ocupada' ? 'bg-rose-100 text-rose-600' :
-                  'bg-amber-100 text-amber-600'
-                }`}>
-                  {statusLabels[room.status] || room.status}
+            {data.rooms.slice(0, 9).map(room => {
+              const isOccupiedByCheckin = occupiedRoomIds.has(room.id);
+              const effectiveStatus = isOccupiedByCheckin ? 'Ocupada' : room.status;
+
+              return (
+                <div key={room.id} className={`p-5 border bg-gray-50/30 rounded-3xl flex flex-col items-center justify-center text-center space-y-3 hover:bg-white transition-all ${isOccupiedByCheckin ? 'border-rose-100 shadow-sm' : 'border-gray-50'}`}>
+                  <span className="text-lg font-black text-gray-800">Hab. {room.number}</span>
+                  <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{room.type}</span>
+                  <div className={`w-full py-1.5 px-3 rounded-xl text-[9px] font-black uppercase tracking-wider ${
+                    effectiveStatus === 'Disponible' ? 'bg-emerald-100 text-emerald-600' :
+                    effectiveStatus === 'Ocupada' ? 'bg-rose-100 text-rose-600' :
+                    'bg-amber-100 text-amber-600'
+                  }`}>
+                    {statusLabels[effectiveStatus] || effectiveStatus}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>
+
+      {/* Modal de Check-ins de Hoy */}
+      {showTodayCheckinsModal && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xl flex items-center justify-center z-50 p-6" onClick={() => setShowTodayCheckinsModal(false)}>
+          <div className="bg-white rounded-[3.5rem] p-10 max-w-2xl w-full shadow-2xl relative animate-in zoom-in duration-300" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-8">
+              <div>
+                <h2 className="text-3xl font-black text-gray-900 tracking-tight">Check-ins de Hoy</h2>
+                <p className="text-indigo-500 font-black text-[10px] uppercase tracking-[0.2em]">{todayStr}</p>
+              </div>
+              <button onClick={() => setShowTodayCheckinsModal(false)} className="p-4 bg-gray-100 text-gray-400 rounded-2xl hover:bg-gray-200 transition-all">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+
+            <div className="space-y-4 max-h-[60vh] overflow-y-auto custom-scrollbar pr-2">
+              {todayCheckins.length > 0 ? todayCheckins.map(res => {
+                const guest = data.guests.find(g => g.id === res.guest_id);
+                const room = data.rooms.find(r => r.id === res.room_id);
+                return (
+                  <div key={res.id} className="flex items-center justify-between p-6 bg-gray-50 rounded-[2rem] border border-gray-100 hover:border-indigo-200 transition-all">
+                    <div className="flex items-center space-x-6">
+                      <div className={`w-16 h-16 rounded-2xl flex items-center justify-center text-white text-2xl font-black shadow-xl ${res.status === 'Check-in' ? 'bg-indigo-600' : 'bg-green-500'}`}>
+                        {guest?.name.charAt(0)}
+                      </div>
+                      <div>
+                        <p className="text-xl font-black text-gray-800">{guest?.name}</p>
+                        <p className="text-indigo-600 font-bold uppercase tracking-widest text-[10px]">Habitación {room?.number} • {room?.type}</p>
+                        <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-lg border mt-1 inline-block ${res.status === 'Check-in' ? 'bg-indigo-50 text-indigo-600 border-indigo-100' : 'bg-green-50 text-green-600 border-green-100'}`}>
+                          {res.status === 'Check-in' ? 'Hospedado' : 'Pendiente'}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Liquidación</p>
+                      <p className="text-xl font-black text-gray-900">${res.total_price}</p>
+                    </div>
+                  </div>
+                );
+              }) : (
+                <div className="py-20 text-center space-y-4">
+                  <div className="text-5xl">📭</div>
+                  <p className="text-gray-400 font-black uppercase tracking-widest text-xs">No hay entradas previstas para hoy</p>
+                </div>
+              )}
+            </div>
+
+            <button onClick={() => setShowTodayCheckinsModal(false)} className="w-full mt-10 py-5 bg-indigo-600 text-white rounded-[2rem] font-black uppercase tracking-widest text-xs shadow-xl active:scale-95 transition-all">
+              Cerrar Vista
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Habitaciones Ocupadas (Check-ins activos) */}
+      {showOccupiedRoomsModal && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xl flex items-center justify-center z-50 p-6" onClick={() => setShowOccupiedRoomsModal(false)}>
+          <div className="bg-white rounded-[3.5rem] p-10 max-w-2xl w-full shadow-2xl relative animate-in zoom-in duration-300" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-8">
+              <div>
+                <h2 className="text-3xl font-black text-gray-900 tracking-tight">Huéspedes Hospedados</h2>
+                <p className="text-blue-500 font-black text-[10px] uppercase tracking-[0.2em]">{activeCheckinsCount} Check-ins Activos</p>
+              </div>
+              <button onClick={() => setShowOccupiedRoomsModal(false)} className="p-4 bg-gray-100 text-gray-400 rounded-2xl hover:bg-gray-200 transition-all">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-[60vh] overflow-y-auto custom-scrollbar pr-2">
+              {data.reservations.filter(r => r.status === 'Check-in').length > 0 ? data.reservations.filter(r => r.status === 'Check-in').map(res => {
+                const room = data.rooms.find(rm => rm.id === res.room_id);
+                const guest = data.guests.find(g => g.id === res.guest_id);
+                return (
+                  <div key={res.id} className="p-6 bg-blue-50/50 rounded-[2rem] border border-blue-100 flex flex-col space-y-3">
+                    <div className="flex justify-between items-start">
+                      <span className="text-2xl font-black text-blue-900">Hab. {room?.number}</span>
+                      <span className="bg-blue-600 text-white text-[9px] font-black px-3 py-1 rounded-lg uppercase tracking-widest">Hospedado</span>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-blue-400 font-black uppercase tracking-widest">Huésped</p>
+                      <p className="font-bold text-gray-800">{guest?.name}</p>
+                    </div>
+                    <div className="flex justify-between border-t border-blue-100 pt-3">
+                      <div className="text-left">
+                        <p className="text-[9px] text-gray-400 font-black uppercase">Entrada</p>
+                        <p className="text-[11px] font-bold text-gray-600">{res.check_in}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[9px] text-gray-400 font-black uppercase">Salida</p>
+                        <p className="text-[11px] font-bold text-gray-600">{res.check_out}</p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              }) : (
+                <div className="col-span-full py-20 text-center space-y-4">
+                  <div className="text-5xl">🏢</div>
+                  <p className="text-gray-400 font-black uppercase tracking-widest text-xs">No hay habitaciones ocupadas en este momento</p>
+                </div>
+              )}
+            </div>
+
+            <button onClick={() => setShowOccupiedRoomsModal(false)} className="w-full mt-10 py-5 bg-blue-600 text-white rounded-[2rem] font-black uppercase tracking-widest text-xs shadow-xl active:scale-95 transition-all">
+              Cerrar Vista
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
