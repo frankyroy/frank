@@ -1,11 +1,12 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { View, Room, Guest, Reservation, MaintenanceTask } from './types';
+import { View, Room, Guest, Reservation, MaintenanceTask, Staff } from './types';
 import Dashboard from './components/Dashboard';
 import Calendar from './components/Calendar';
 import GuestList from './components/GuestList';
 import RoomManager from './components/RoomManager';
 import MaintenanceTracker from './components/MaintenanceTracker';
+import StaffManager from './components/StaffManager';
 import AIHub from './components/AIHub';
 import Sidebar from './components/Sidebar';
 import Login from './components/Login';
@@ -21,6 +22,7 @@ const App: React.FC = () => {
   const [guests, setGuests] = useState<Guest[]>([]);
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [maintenance, setMaintenance] = useState<MaintenanceTask[]>([]);
+  const [staff, setStaff] = useState<Staff[]>([]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -40,22 +42,19 @@ const App: React.FC = () => {
   const fetchAllData = async () => {
     setLoading(true);
     try {
-      const [roomsRes, guestsRes, reservationsRes, maintenanceRes] = await Promise.all([
+      const [roomsRes, guestsRes, reservationsRes, maintenanceRes, staffRes] = await Promise.all([
         supabase.from('rooms').select('*').order('number'),
         supabase.from('guests').select('*').order('name'),
         supabase.from('reservations').select('*'),
-        supabase.from('maintenance_tasks').select('*').order('created_at', { ascending: false })
+        supabase.from('maintenance_tasks').select('*').order('created_at', { ascending: false }),
+        supabase.from('staff').select('*').order('name')
       ]);
-
-      if (roomsRes.error) console.error("Error al cargar Habitaciones:", roomsRes.error.message);
-      if (guestsRes.error) console.error("Error al cargar Huéspedes:", guestsRes.error.message);
-      if (reservationsRes.error) console.error("Error al cargar Reservas:", reservationsRes.error.message);
-      if (maintenanceRes.error) console.error("Error al cargar Mantenimiento:", maintenanceRes.error.message);
 
       if (roomsRes.data) setRooms(roomsRes.data);
       if (guestsRes.data) setGuests(guestsRes.data);
       if (reservationsRes.data) setReservations(reservationsRes.data);
       if (maintenanceRes.data) setMaintenance(maintenanceRes.data);
+      if (staffRes.data) setStaff(staffRes.data);
 
     } catch (err) {
       console.error("Error fatal en la comunicación con Supabase:", err);
@@ -109,9 +108,9 @@ const App: React.FC = () => {
   };
 
   const contextValue = useMemo(() => ({
-    rooms, guests, reservations, maintenance, roomTypes,
-    setRooms, setGuests, setReservations, setMaintenance, setRoomTypes
-  }), [rooms, guests, reservations, maintenance, roomTypes]);
+    rooms, guests, reservations, maintenance, staff, roomTypes,
+    setRooms, setGuests, setReservations, setMaintenance, setStaff, setRoomTypes
+  }), [rooms, guests, reservations, maintenance, staff, roomTypes]);
 
   const renderView = () => {
     if (loading) return (
@@ -172,6 +171,26 @@ const App: React.FC = () => {
           }} 
         />
       );
+      case 'Staff': return (
+        <StaffManager 
+          staff={staff}
+          onAddStaff={async (m) => {
+            const { data, error } = await supabase.from('staff').insert([m]).select();
+            if (error) throw error;
+            if (data) setStaff(prev => [...prev, data[0]]);
+          }}
+          onUpdateStaff={async (m) => {
+            const { error } = await supabase.from('staff').update(m).eq('id', m.id);
+            if (error) throw error;
+            setStaff(prev => prev.map(member => member.id === m.id ? m : member));
+          }}
+          onDeleteStaff={async (id) => {
+            const { error } = await supabase.from('staff').delete().eq('id', id);
+            if (error) throw error;
+            setStaff(prev => prev.filter(m => m.id !== id));
+          }}
+        />
+      );
       case 'AI': return <AIHub />;
       default: return <Dashboard data={contextValue} />;
     }
@@ -185,7 +204,11 @@ const App: React.FC = () => {
       <main className="flex-1 overflow-y-auto p-4 md:p-8">
         <header className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="animate-in fade-in slide-in-from-left duration-500">
-            <h1 className="text-3xl font-black text-gray-800 tracking-tight">{currentView === 'AI' ? 'Asistente de Hostal' : (currentView === 'Guests' ? 'Directorio de Huéspedes' : currentView)}</h1>
+            <h1 className="text-3xl font-black text-gray-800 tracking-tight">
+              {currentView === 'AI' ? 'Asistente de Hostal' : 
+               currentView === 'Staff' ? 'Equipo de Trabajo' :
+               currentView === 'Guests' ? 'Directorio de Huéspedes' : currentView}
+            </h1>
             <div className="flex items-center space-x-2 mt-1">
                <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
                <p className="text-[10px] text-emerald-600 font-bold uppercase tracking-widest">Supabase Cloud Live</p>

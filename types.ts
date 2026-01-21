@@ -28,14 +28,41 @@ export interface Reservation {
 
 export interface MaintenanceTask {
   id: string;
-  room_id: string;
+  room_id?: string;
+  area?: string;
   description: string;
   priority: 'Baja' | 'Media' | 'Alta';
   status: 'Pendiente' | 'En Progreso' | 'Completado';
   created_at: string;
 }
 
-export type View = 'Dashboard' | 'Calendar' | 'Guests' | 'Rooms' | 'Maintenance' | 'AI';
+export interface StaffTask {
+  id: string;
+  text: string;
+  completed: boolean;
+}
+
+export interface StaffMessage {
+  id: string;
+  text: string;
+  date: string;
+  sender: string;
+}
+
+export interface Staff {
+  id: string;
+  name: string;
+  role: 'Recepción' | 'Limpieza' | 'Mantenimiento' | 'Administración' | 'Cocina';
+  phone: string;
+  email: string;
+  shift: 'Mañana' | 'Tarde' | 'Noche' | 'Rotativo';
+  notes?: string;
+  tasks?: StaffTask[];
+  messages?: StaffMessage[];
+  created_at?: string;
+}
+
+export type View = 'Dashboard' | 'Calendar' | 'Guests' | 'Rooms' | 'Maintenance' | 'Staff' | 'AI';
 
 export interface GroundingSource {
   title: string;

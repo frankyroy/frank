@@ -9,13 +9,32 @@ interface MaintenanceTrackerProps {
   onAddTask: (task: MaintenanceTask) => void;
 }
 
+const COMMON_AREAS = [
+  'Áreas Sociales',
+  'Comedor',
+  'Hamacas',
+  'Garage',
+  'Piscina',
+  'Lavandería',
+  'Jardinería'
+];
+
 const MaintenanceTracker: React.FC<MaintenanceTrackerProps> = ({ tasks, rooms, onUpdateTask, onAddTask }) => {
   const [showForm, setShowForm] = useState(false);
-  const [newTask, setNewTask] = useState({ room_id: '', description: '', priority: 'Media' as any });
+  const [locationType, setLocationType] = useState<'room' | 'area'>('room');
+  const [newTask, setNewTask] = useState({ 
+    room_id: '', 
+    area: '', 
+    description: '', 
+    priority: 'Media' as any 
+  });
 
   useEffect(() => {
     if (rooms.length > 0 && !newTask.room_id) {
       setNewTask(prev => ({ ...prev, room_id: rooms[0].id }));
+    }
+    if (!newTask.area) {
+      setNewTask(prev => ({ ...prev, area: COMMON_AREAS[0] }));
     }
   }, [rooms, showForm]);
 
@@ -33,17 +52,29 @@ const MaintenanceTracker: React.FC<MaintenanceTrackerProps> = ({ tasks, rooms, o
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTask.room_id) return;
     
-    onAddTask({
-      ...newTask,
+    const taskData: any = {
       id: crypto.randomUUID(),
+      description: newTask.description,
+      priority: newTask.priority,
       status: 'Pendiente',
       created_at: new Date().toISOString()
-    } as MaintenanceTask);
+    };
+
+    if (locationType === 'room') {
+      taskData.room_id = newTask.room_id;
+    } else {
+      taskData.area = newTask.area;
+    }
     
+    onAddTask(taskData as MaintenanceTask);
     setShowForm(false);
-    setNewTask({ room_id: rooms[0]?.id || '', description: '', priority: 'Media' });
+    setNewTask({ 
+      room_id: rooms[0]?.id || '', 
+      area: COMMON_AREAS[0], 
+      description: '', 
+      priority: 'Media' 
+    });
   };
 
   return (
@@ -51,7 +82,7 @@ const MaintenanceTracker: React.FC<MaintenanceTrackerProps> = ({ tasks, rooms, o
       <div className="flex justify-between items-center flex-wrap gap-4 bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm">
         <div>
           <h2 className="text-2xl font-black text-gray-800 tracking-tight">Control de Mantenimiento</h2>
-          <p className="text-gray-400 text-sm font-semibold uppercase tracking-wider mt-1">Gestión de incidencias y averías técnicas.</p>
+          <p className="text-gray-400 text-sm font-semibold uppercase tracking-wider mt-1">Gestión de incidencias en habitaciones y áreas comunes.</p>
         </div>
         <button 
           onClick={() => setShowForm(true)}
@@ -64,7 +95,7 @@ const MaintenanceTracker: React.FC<MaintenanceTrackerProps> = ({ tasks, rooms, o
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {tasks.map(task => {
-          const room = rooms.find(r => r.id === task.room_id);
+          const room = task.room_id ? rooms.find(r => r.id === task.room_id) : null;
           return (
             <div key={task.id} className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-gray-100 flex flex-col justify-between hover:shadow-xl hover:shadow-gray-200/40 transition-all duration-500 group border-b-4 border-b-transparent hover:border-b-indigo-500">
               <div className="space-y-5">
@@ -77,7 +108,13 @@ const MaintenanceTracker: React.FC<MaintenanceTrackerProps> = ({ tasks, rooms, o
                   </span>
                 </div>
                 <div>
-                  <h4 className="text-2xl font-black text-gray-800 mb-1">Habitación {room?.number || 'N/A'}</h4>
+                  <h4 className="text-2xl font-black text-gray-800 mb-1 flex items-center">
+                    {task.area ? (
+                      <><span className="mr-2">📍</span> {task.area}</>
+                    ) : (
+                      <><span className="mr-2 text-indigo-400">🏠</span> Habitación {room?.number || '??'}</>
+                    )}
+                  </h4>
                   <p className="text-gray-500 text-sm leading-relaxed font-medium line-clamp-3">{task.description}</p>
                 </div>
               </div>
@@ -129,20 +166,53 @@ const MaintenanceTracker: React.FC<MaintenanceTrackerProps> = ({ tasks, rooms, o
       {showForm && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in duration-300">
           <div className="bg-white rounded-[2.5rem] p-10 max-w-md w-full shadow-2xl animate-in zoom-in duration-300">
-            <h2 className="text-3xl font-black text-gray-800 mb-6 tracking-tight">Reportar Avería</h2>
+            <h2 className="text-3xl font-black text-gray-800 mb-6 tracking-tight">Reportar Incidencia</h2>
+            
+            <div className="flex bg-gray-100 p-1 rounded-2xl mb-6">
+              <button 
+                type="button"
+                onClick={() => setLocationType('room')}
+                className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${locationType === 'room' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}
+              >
+                Habitación
+              </button>
+              <button 
+                type="button"
+                onClick={() => setLocationType('area')}
+                className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${locationType === 'area' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400'}`}
+              >
+                Zona Común
+              </button>
+            </div>
+
             <form onSubmit={handleCreate} className="space-y-6">
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Habitación Afectada</label>
-                <select 
-                  required 
-                  value={newTask.room_id} 
-                  onChange={e => setNewTask({...newTask, room_id: e.target.value})}
-                  className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:outline-none appearance-none font-bold text-gray-700"
-                >
-                  <option value="" disabled>Seleccionar habitación</option>
-                  {rooms.map(r => <option key={r.id} value={r.id}>Habitación {r.number}</option>)}
-                </select>
-              </div>
+              {locationType === 'room' ? (
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Habitación Afectada</label>
+                  <select 
+                    required 
+                    value={newTask.room_id} 
+                    onChange={e => setNewTask({...newTask, room_id: e.target.value})}
+                    className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:outline-none appearance-none font-bold text-gray-700"
+                  >
+                    <option value="" disabled>Seleccionar habitación</option>
+                    {rooms.map(r => <option key={r.id} value={r.id}>Habitación {r.number}</option>)}
+                  </select>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Área o Zona</label>
+                  <select 
+                    required 
+                    value={newTask.area} 
+                    onChange={e => setNewTask({...newTask, area: e.target.value})}
+                    className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:outline-none appearance-none font-bold text-gray-700"
+                  >
+                    {COMMON_AREAS.map(area => <option key={area} value={area}>{area}</option>)}
+                  </select>
+                </div>
+              )}
+
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Descripción del Problema</label>
                 <textarea 
@@ -153,6 +223,7 @@ const MaintenanceTracker: React.FC<MaintenanceTrackerProps> = ({ tasks, rooms, o
                   className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:outline-none h-32 font-medium resize-none"
                 />
               </div>
+              
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Nivel de Prioridad</label>
                 <div className="grid grid-cols-3 gap-3">
