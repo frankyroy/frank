@@ -7,7 +7,6 @@ import GuestList from './components/GuestList';
 import RoomManager from './components/RoomManager';
 import MaintenanceTracker from './components/MaintenanceTracker';
 import StaffManager from './components/StaffManager';
-import AIHub from './components/AIHub';
 import Sidebar from './components/Sidebar';
 import Login from './components/Login';
 import { supabase } from './services/supabase';
@@ -191,7 +190,6 @@ const App: React.FC = () => {
           }}
         />
       );
-      case 'AI': return <AIHub />;
       default: return <Dashboard data={contextValue} />;
     }
   };
@@ -205,8 +203,7 @@ const App: React.FC = () => {
         <header className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="animate-in fade-in slide-in-from-left duration-500">
             <h1 className="text-3xl font-black text-gray-800 tracking-tight">
-              {currentView === 'AI' ? 'Asistente de Hostal' : 
-               currentView === 'Staff' ? 'Equipo de Trabajo' :
+              {currentView === 'Staff' ? 'Equipo de Trabajo' :
                currentView === 'Guests' ? 'Directorio de Huéspedes' : currentView}
             </h1>
             <div className="flex items-center space-x-2 mt-1">

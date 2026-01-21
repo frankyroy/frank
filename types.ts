@@ -62,7 +62,7 @@ export interface Staff {
   created_at?: string;
 }
 
-export type View = 'Dashboard' | 'Calendar' | 'Guests' | 'Rooms' | 'Maintenance' | 'Staff' | 'AI';
+export type View = 'Dashboard' | 'Calendar' | 'Guests' | 'Rooms' | 'Maintenance' | 'Staff';
 
 export interface GroundingSource {
   title: string;
