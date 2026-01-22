@@ -16,7 +16,7 @@ const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<View>('Dashboard');
   const [loading, setLoading] = useState(true);
 
-  const [roomTypes, setRoomTypes] = useState<string[]>(['Individual', 'Doble', 'Suite', 'Dormitorio']);
+  const [roomTypes, setRoomTypes] = useState<string[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [guests, setGuests] = useState<Guest[]>([]);
   const [reservations, setReservations] = useState<Reservation[]>([]);
@@ -41,12 +41,13 @@ const App: React.FC = () => {
   const fetchAllData = async () => {
     setLoading(true);
     try {
-      const [roomsRes, guestsRes, reservationsRes, maintenanceRes, staffRes] = await Promise.all([
+      const [roomsRes, guestsRes, reservationsRes, maintenanceRes, staffRes, typesRes] = await Promise.all([
         supabase.from('rooms').select('*').order('number'),
         supabase.from('guests').select('*').order('name'),
         supabase.from('reservations').select('*'),
         supabase.from('maintenance_tasks').select('*').order('created_at', { ascending: false }),
-        supabase.from('staff').select('*').order('name')
+        supabase.from('staff').select('*').order('name'),
+        supabase.from('room_types').select('name').order('name')
       ]);
 
       if (roomsRes.data) setRooms(roomsRes.data);
@@ -54,11 +55,54 @@ const App: React.FC = () => {
       if (reservationsRes.data) setReservations(reservationsRes.data);
       if (maintenanceRes.data) setMaintenance(maintenanceRes.data);
       if (staffRes.data) setStaff(staffRes.data);
+      
+      if (typesRes.data && typesRes.data.length > 0) {
+        setRoomTypes(typesRes.data.map(t => t.name));
+      } else {
+        // Si no hay tipos en la nube, inicializamos con defaults y los persistimos
+        const defaults = ['Individual', 'Doble', 'Suite', 'Dormitorio'];
+        setRoomTypes(defaults);
+        await supabase.from('room_types').insert(defaults.map(n => ({ name: n })));
+      }
 
     } catch (err) {
       console.error("Error fatal en la comunicación con Supabase:", err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleUpdateRoomTypes = async (newTypes: string[]) => {
+    try {
+      // 1. Obtener tipos actuales de la DB para comparar
+      const { data: currentDbTypes } = await supabase.from('room_types').select('name');
+      const currentNames = currentDbTypes?.map(t => t.name) || [];
+
+      // 2. Determinar qué añadir y qué borrar
+      const toDelete = currentNames.filter(name => !newTypes.includes(name));
+      const toAdd = newTypes.filter(name => !currentNames.includes(name)).map(name => ({ name }));
+
+      // Ejecutar cambios en la nube
+      if (toDelete.length > 0) {
+        const { error } = await supabase.from('room_types').delete().in('name', toDelete);
+        if (error) throw error;
+      }
+
+      if (toAdd.length > 0) {
+        const { error } = await supabase.from('room_types').insert(toAdd);
+        if (error) throw error;
+      }
+
+      // Actualizar estado local solo tras éxito en DB
+      setRoomTypes([...newTypes].sort());
+      
+    } catch (err: any) {
+      console.error("Error al sincronizar tipos de habitación:", err);
+      alert(`Error Cloud: ${err.message || "No se pudo guardar la nueva categoría."}`);
+      
+      // Intentar restaurar estado desde la nube para evitar desincronización
+      const { data } = await supabase.from('room_types').select('name').order('name');
+      if (data) setRoomTypes(data.map(t => t.name));
     }
   };
 
@@ -151,7 +195,7 @@ const App: React.FC = () => {
           onUpdateRoom={handleUpdateRoom} 
           onAddRoom={handleAddRoom}
           onDeleteRoom={handleDeleteRoom}
-          onUpdateRoomTypes={setRoomTypes}
+          onUpdateRoomTypes={handleUpdateRoomTypes}
         />
       );
       case 'Maintenance': return (
@@ -204,7 +248,8 @@ const App: React.FC = () => {
           <div className="animate-in fade-in slide-in-from-left duration-500">
             <h1 className="text-3xl font-black text-gray-800 tracking-tight">
               {currentView === 'Staff' ? 'Equipo de Trabajo' :
-               currentView === 'Guests' ? 'Directorio de Huéspedes' : currentView}
+               currentView === 'Guests' ? 'Directorio de Huéspedes' : 
+               currentView === 'Rooms' ? 'Gestión de Habitaciones' : currentView}
             </h1>
             <div className="flex items-center space-x-2 mt-1">
                <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>

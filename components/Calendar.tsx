@@ -38,6 +38,10 @@ const Calendar: React.FC<CalendarProps> = ({ reservations, rooms, guests, onAddR
     });
   }, [startDate]);
 
+  const currentMonthYear = useMemo(() => {
+    return startDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+  }, [startDate]);
+
   const sortedReservations = useMemo(() => {
     return [...reservations].sort((a, b) => new Date(a.check_in).getTime() - new Date(b.check_in).getTime());
   }, [reservations]);
@@ -153,15 +157,22 @@ const Calendar: React.FC<CalendarProps> = ({ reservations, rooms, guests, onAddR
   return (
     <div className="space-y-6">
       <div className="flex flex-col lg:flex-row justify-between items-center bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm gap-6">
-        <div className="flex flex-wrap items-center gap-4">
+        <div className="flex flex-wrap items-center gap-6">
           <div className="flex bg-gray-100 p-1 rounded-2xl">
             <button onClick={() => setViewType('timeline')} className={`px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${viewType === 'timeline' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>Cronograma</button>
             <button onClick={() => setViewType('agenda')} className={`px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${viewType === 'agenda' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>Agenda</button>
           </div>
-          <div className="flex items-center space-x-2 bg-gray-50 p-1 rounded-2xl border border-gray-100">
-            <button onClick={prevPeriod} className="p-2 hover:bg-white rounded-xl text-gray-400 transition-all"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" /></svg></button>
-            <button onClick={resetToToday} className="px-4 py-2 bg-white text-indigo-600 font-black text-[10px] uppercase rounded-xl">Hoy</button>
-            <button onClick={nextPeriod} className="p-2 hover:bg-white rounded-xl text-gray-400 transition-all"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" /></svg></button>
+          
+          <div className="flex items-center space-x-4">
+             <div className="flex items-center space-x-2 bg-gray-50 p-1 rounded-2xl border border-gray-100">
+                <button onClick={prevPeriod} className="p-2 hover:bg-white rounded-xl text-gray-400 transition-all"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" /></svg></button>
+                <button onClick={resetToToday} className="px-4 py-2 bg-white text-indigo-600 font-black text-[10px] uppercase rounded-xl">Hoy</button>
+                <button onClick={nextPeriod} className="p-2 hover:bg-white rounded-xl text-gray-400 transition-all"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" /></svg></button>
+              </div>
+              <div className="hidden sm:block">
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-0.5">Vista de</p>
+                <p className="text-lg font-black text-gray-800 uppercase tracking-tight leading-none truncate w-40 capitalize">{currentMonthYear}</p>
+              </div>
           </div>
         </div>
         
@@ -181,7 +192,9 @@ const Calendar: React.FC<CalendarProps> = ({ reservations, rooms, guests, onAddR
           <div className="overflow-x-auto custom-scrollbar">
             <div className="min-w-[1600px] flex flex-col">
               <div className="flex border-b border-gray-100 bg-gray-50/50 sticky top-0 z-30">
-                <div className="w-64 shrink-0 p-6 border-r font-black text-gray-400 uppercase text-[10px] text-center">Habitaciones</div>
+                <div className="w-64 shrink-0 p-6 border-r font-black text-gray-400 uppercase text-[10px] text-center flex items-center justify-center">
+                   <span>Habitaciones</span>
+                </div>
                 <div className="flex-1 flex">
                   {days.map((day, i) => (
                     <div key={i} className={`flex-1 p-5 text-center border-r ${day.toDateString() === new Date().toDateString() ? 'bg-indigo-50/30' : ''}`}>
