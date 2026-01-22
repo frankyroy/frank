@@ -24,6 +24,7 @@ export interface Reservation {
   check_out: string;
   status: 'Confirmada' | 'Check-in' | 'Check-out' | 'Cancelada';
   total_price: number;
+  advance_payment: number;
 }
 
 export interface MaintenanceTask {
@@ -60,6 +61,18 @@ export interface Staff {
   tasks?: StaffTask[];
   messages?: StaffMessage[];
   created_at?: string;
+}
+
+export interface SavedSearch {
+  id: string;
+  name: string;
+  filters: {
+    searchTerm: string;
+    checkInStart: string;
+    checkInEnd: string;
+    roomType: string;
+    resStatus: string;
+  };
 }
 
 export type View = 'Dashboard' | 'Calendar' | 'Guests' | 'Rooms' | 'Maintenance' | 'Staff';

@@ -25,7 +25,8 @@ const Calendar: React.FC<CalendarProps> = ({ reservations, rooms, guests, onAddR
     check_in: '',
     check_out: '',
     status: 'Confirmada',
-    total_price: 0
+    total_price: 0,
+    advance_payment: 0
   });
 
   const days = useMemo(() => {
@@ -84,12 +85,12 @@ const Calendar: React.FC<CalendarProps> = ({ reservations, rooms, guests, onAddR
       check_in,
       check_out,
       status: 'Confirmada',
-      total_price: room ? room.price : 0
+      total_price: room ? room.price : 0,
+      advance_payment: 0
     });
     setModalMode('add');
   };
 
-  // Función para el botón global "Nueva Reserva"
   const handleGlobalAdd = () => {
     const today = new Date();
     const check_in = today.toISOString().split('T')[0];
@@ -103,7 +104,8 @@ const Calendar: React.FC<CalendarProps> = ({ reservations, rooms, guests, onAddR
       check_in,
       check_out,
       status: 'Confirmada',
-      total_price: rooms[0]?.price || 0
+      total_price: rooms[0]?.price || 0,
+      advance_payment: 0
     });
     setModalMode('add');
   };
@@ -120,10 +122,14 @@ const Calendar: React.FC<CalendarProps> = ({ reservations, rooms, guests, onAddR
   };
 
   const handleSave = () => {
+    const resData = {
+      ...formData,
+      advance_payment: Number(formData.advance_payment) || 0
+    };
     if (modalMode === 'add') {
-      onAddReservation({ ...(formData as Reservation), id: crypto.randomUUID() });
+      onAddReservation({ ...(resData as Reservation), id: crypto.randomUUID() });
     } else if (modalMode === 'edit' && selectedRes) {
-      onUpdateReservation(formData as Reservation);
+      onUpdateReservation(resData as Reservation);
     }
     setModalMode(null);
   };
@@ -225,10 +231,11 @@ const Calendar: React.FC<CalendarProps> = ({ reservations, rooms, guests, onAddR
                   <div><p className="text-[10px] uppercase text-gray-400 font-black">Entrada</p><p className="font-bold">{res.check_in}</p></div>
                   <div className="text-right"><p className="text-[10px] uppercase text-gray-400 font-black">Salida</p><p className="font-bold">{res.check_out}</p></div>
                 </div>
-                <div className="mt-4">
+                <div className="mt-4 flex items-center justify-between">
                   <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider ${reservationStatusConfig[res.status]}`}>
                     {res.status}
                   </span>
+                  <span className="text-xs font-black text-rose-600">${res.total_price - (res.advance_payment || 0)} pendiente</span>
                 </div>
               </button>
             );
@@ -269,6 +276,15 @@ const Calendar: React.FC<CalendarProps> = ({ reservations, rooms, guests, onAddR
                 <input type="date" value={formData.check_out} onChange={e => setFormData({...formData, check_out: e.target.value})} className="w-full p-4 bg-slate-50 border rounded-2xl" />
               </div>
               
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Precio Total</label>
+                <input type="number" value={formData.total_price} onChange={e => setFormData({...formData, total_price: Number(e.target.value)})} className="w-full p-4 bg-slate-50 border border-slate-100 rounded-2xl font-bold" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-widest text-rose-400">Anticipo / Abono</label>
+                <input type="number" value={formData.advance_payment} onChange={e => setFormData({...formData, advance_payment: Number(e.target.value)})} className="w-full p-4 bg-rose-50 border border-rose-100 rounded-2xl font-bold text-rose-700" placeholder="Monto adelantado" />
+              </div>
+
               <div className="space-y-1 col-span-2">
                 <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Estado de la Reserva</label>
                 <select 
@@ -285,8 +301,14 @@ const Calendar: React.FC<CalendarProps> = ({ reservations, rooms, guests, onAddR
 
               <div className="space-y-1 col-span-2 pt-2">
                 <div className="w-full p-5 bg-indigo-50 border border-indigo-100 rounded-[1.8rem] font-black text-indigo-600 flex items-center justify-between text-xl tracking-tighter shadow-sm">
-                  <span className="text-[10px] uppercase tracking-widest text-indigo-400">Liquidación Estimada:</span>
-                  <span>${formData.total_price}</span>
+                  <div className="flex flex-col">
+                    <span className="text-[10px] uppercase tracking-widest text-indigo-400">Saldo Restante:</span>
+                    <span className="text-rose-600 font-black">${(formData.total_price || 0) - (formData.advance_payment || 0)}</span>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[10px] uppercase tracking-widest text-indigo-400">Total:</span>
+                    <p>${formData.total_price}</p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -333,8 +355,12 @@ const Calendar: React.FC<CalendarProps> = ({ reservations, rooms, guests, onAddR
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Liquidación</p>
-                  <p className="text-3xl font-black text-indigo-600 tracking-tighter">${selectedRes.total_price}</p>
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Finanzas</p>
+                  <div className="space-y-1">
+                    <p className="text-xl font-black text-gray-900 tracking-tighter">Total: ${selectedRes.total_price}</p>
+                    <p className="text-sm font-bold text-emerald-600">Abonado: ${selectedRes.advance_payment}</p>
+                    <p className="text-lg font-black text-rose-600">Saldo: ${selectedRes.total_price - selectedRes.advance_payment}</p>
+                  </div>
                 </div>
               </div>
 
