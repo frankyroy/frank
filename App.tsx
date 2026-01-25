@@ -59,7 +59,6 @@ const App: React.FC = () => {
       if (typesRes.data && typesRes.data.length > 0) {
         setRoomTypes(typesRes.data.map(t => t.name));
       } else {
-        // Si no hay tipos en la nube, inicializamos con defaults y los persistimos
         const defaults = ['Individual', 'Doble', 'Suite', 'Dormitorio'];
         setRoomTypes(defaults);
         await supabase.from('room_types').insert(defaults.map(n => ({ name: n })));
@@ -74,15 +73,12 @@ const App: React.FC = () => {
 
   const handleUpdateRoomTypes = async (newTypes: string[]) => {
     try {
-      // 1. Obtener tipos actuales de la DB para comparar
       const { data: currentDbTypes } = await supabase.from('room_types').select('name');
       const currentNames = currentDbTypes?.map(t => t.name) || [];
 
-      // 2. Determinar qué añadir y qué borrar
       const toDelete = currentNames.filter(name => !newTypes.includes(name));
       const toAdd = newTypes.filter(name => !currentNames.includes(name)).map(name => ({ name }));
 
-      // Ejecutar cambios en la nube
       if (toDelete.length > 0) {
         const { error } = await supabase.from('room_types').delete().in('name', toDelete);
         if (error) throw error;
@@ -93,14 +89,11 @@ const App: React.FC = () => {
         if (error) throw error;
       }
 
-      // Actualizar estado local solo tras éxito en DB
       setRoomTypes([...newTypes].sort());
       
     } catch (err: any) {
       console.error("Error al sincronizar tipos de habitación:", err);
       alert(`Error Cloud: ${err.message || "No se pudo guardar la nueva categoría."}`);
-      
-      // Intentar restaurar estado desde la nube para evitar desincronización
       const { data } = await supabase.from('room_types').select('name').order('name');
       if (data) setRoomTypes(data.map(t => t.name));
     }
@@ -121,7 +114,10 @@ const App: React.FC = () => {
   const handleDeleteRoom = async (roomId: string) => {
     if (window.confirm('¿Eliminar esta habitación de la nube permanentemente?')) {
       const { error } = await supabase.from('rooms').delete().eq('id', roomId);
-      if (error) throw error;
+      if (error) {
+        alert("No se puede eliminar la habitación: asegúrate de que no tenga reservas históricas asociadas.");
+        return;
+      }
       setRooms(prev => prev.filter(r => r.id !== roomId));
     }
   };
@@ -164,7 +160,7 @@ const App: React.FC = () => {
     );
 
     switch (currentView) {
-      case 'Dashboard': return <Dashboard data={contextValue} />;
+      case 'Dashboard': return <Dashboard data={contextValue} setView={setCurrentView} />;
       case 'Calendar': return (
         <Calendar 
           reservations={reservations} 
@@ -181,10 +177,20 @@ const App: React.FC = () => {
           reservations={reservations}
           onAddGuest={handleAddGuest}
           onUpdateGuest={handleUpdateGuest}
+          onUpdateReservation={handleUpdateReservation}
           onDeleteGuest={async (id) => {
-            const { error } = await supabase.from('guests').delete().eq('id', id);
-            if (error) throw error;
-            setGuests(prev => prev.filter(g => g.id !== id));
+            try {
+              const { error } = await supabase.from('guests').delete().eq('id', id);
+              if (error) {
+                if (error.code === '23503') {
+                  throw new Error("No se puede eliminar al huésped porque tiene reservas registradas. Elimina sus reservas primero.");
+                }
+                throw error;
+              }
+              setGuests(prev => prev.filter(g => g.id !== id));
+            } catch (err: any) {
+              throw err;
+            }
           }}
         />
       );
@@ -234,7 +240,7 @@ const App: React.FC = () => {
           }}
         />
       );
-      default: return <Dashboard data={contextValue} />;
+      default: return <Dashboard data={contextValue} setView={setCurrentView} />;
     }
   };
 

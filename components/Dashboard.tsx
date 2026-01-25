@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Room, Guest, Reservation, MaintenanceTask } from '../types';
+import { Room, Guest, Reservation, MaintenanceTask, View } from '../types';
 
 interface DashboardProps {
   data: {
@@ -9,9 +9,10 @@ interface DashboardProps {
     reservations: Reservation[];
     maintenance: MaintenanceTask[];
   };
+  setView: (view: View) => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ data }) => {
+const Dashboard: React.FC<DashboardProps> = ({ data, setView }) => {
   const [showCopyBadge, setShowCopyBadge] = useState(false);
   const [showTodayCheckinsModal, setShowTodayCheckinsModal] = useState(false);
   const [showOccupiedRoomsModal, setShowOccupiedRoomsModal] = useState(false);
@@ -25,14 +26,24 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
     r.check_in === todayStr && (r.status === 'Confirmada' || r.status === 'Check-in')
   );
 
-  // Ocupación Real: Habitaciones con una reserva activa (Check-in)
+  // Ocupación Real
   const occupiedRoomIds = new Set(data.reservations.filter(r => r.status === 'Check-in').map(r => r.room_id));
   const activeCheckinsCount = occupiedRoomIds.size;
   const totalRoomsCount = data.rooms.length;
-  
   const occupancyPercent = totalRoomsCount > 0 
     ? Math.round((activeCheckinsCount / totalRoomsCount) * 100) 
     : 0;
+
+  // CÁLCULOS FINANCIEROS
+  const activeReservations = data.reservations.filter(r => r.status !== 'Cancelada');
+  
+  // Ingresos Totales (Lo que ya se ha cobrado efectivamente como anticipos o abonos)
+  const totalIngresosRecibidos = activeReservations.reduce((sum, r) => sum + (Number(r.advance_payment) || 0), 0);
+  
+  // Cuentas por Cobrar (Saldos pendientes de cobrar de reservas confirmadas o en curso)
+  const cuentasPorCobrar = activeReservations
+    .filter(r => r.status === 'Confirmada' || r.status === 'Check-in')
+    .reduce((sum, r) => sum + ((Number(r.total_price) || 0) - (Number(r.advance_payment) || 0)), 0);
 
   const statusLabels: Record<string, string> = {
     'Disponible': 'Libre',
@@ -47,23 +58,39 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
       value: `${occupancyPercent}%`,
       subValue: `(${activeCheckinsCount}/${totalRoomsCount} habs)`,
       icon: '🏠', 
-      color: 'bg-blue-600', 
+      color: 'bg-indigo-600', 
       id: 'occ', 
       interactive: true 
+    },
+    { 
+      label: 'Ingresos (Abonos)', 
+      value: `$${totalIngresosRecibidos.toLocaleString()}`, 
+      subValue: 'Pagos recibidos',
+      icon: '💰', 
+      color: 'bg-emerald-500', 
+      id: 'income' 
+    },
+    { 
+      label: 'Cuentas por Cobrar', 
+      value: `$${cuentasPorCobrar.toLocaleString()}`, 
+      subValue: 'Saldos pendientes',
+      icon: '📉', 
+      color: 'bg-rose-500', 
+      id: 'receivable' 
     },
     { 
       label: 'Check-ins Hoy', 
       value: todayCheckins.length.toString(), 
       subValue: 'Entradas previstas',
       icon: '🔑', 
-      color: 'bg-emerald-500', 
+      color: 'bg-blue-500', 
       id: 'checkins', 
       interactive: true 
     },
     { 
       label: 'Limpieza', 
       value: data.rooms.filter(r => r.status === 'Limpieza').length.toString(), 
-      subValue: 'Pendientes',
+      subValue: 'Habs pendientes',
       icon: '🧹', 
       color: 'bg-yellow-500', 
       id: 'cleaning' 
@@ -73,7 +100,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
       value: data.maintenance.filter(m => m.status !== 'Completado').length.toString(), 
       subValue: 'Por reparar',
       icon: '🛠️', 
-      color: 'bg-rose-500', 
+      color: 'bg-slate-700', 
       id: 'issues' 
     },
   ];
@@ -86,39 +113,23 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
     report += `-----------------------------------\n\n`;
     report += `📈 ESTADO OPERATIVO:\n`;
     report += `- Ocupación Real: ${occupancyPercent}%\n`;
-    report += `- Huéspedes hospedados: ${activeCheckinsCount} de ${totalRoomsCount} habs.\n`;
     report += `- Check-ins para hoy: ${todayCheckins.length}\n`;
     report += `- Habitaciones en limpieza: ${cleaning}\n`;
     report += `- Incidencias activas: ${activeMaintenance.length}\n\n`;
+    
+    report += `💰 RESUMEN FINANCIERO:\n`;
+    report += `- Ingresos Recibidos (Abonos): $${totalIngresosRecibidos.toLocaleString()}\n`;
+    report += `- Cuentas por Cobrar: $${cuentasPorCobrar.toLocaleString()}\n`;
+    report += `- Valor Total de Reservas: $${(totalIngresosRecibidos + cuentasPorCobrar).toLocaleString()}\n\n`;
     
     report += `📅 RESERVAS RECIENTES:\n`;
     if (data.reservations.length > 0) {
       data.reservations.slice(0, 5).forEach(res => {
         const guest = data.guests.find(g => g.id === res.guest_id);
         const room = data.rooms.find(r => r.id === res.room_id);
-        report += `- ${guest?.name || 'Huésped'} | Hab. ${room?.number || '??'} | ${res.check_in} al ${res.check_out} (${res.status})\n`;
+        report += `- ${guest?.name || 'Huésped'} | Hab. ${room?.number || '??'} | Saldo: $${(res.total_price - res.advance_payment).toLocaleString()}\n`;
       });
-    } else {
-      report += `- No hay reservas recientes.\n`;
     }
-    report += `\n`;
-
-    if (activeMaintenance.length > 0) {
-      report += `🛠️ MANTENIMIENTO PENDIENTE:\n`;
-      activeMaintenance.slice(0, 5).forEach(m => {
-        const room = m.room_id ? data.rooms.find(r => r.id === m.room_id) : null;
-        const location = room ? `Hab. ${room.number}` : (m.area || 'Zona Común');
-        report += `- [${m.priority}] ${location}: ${m.description.substring(0, 30)}...\n`;
-      });
-      report += `\n`;
-    }
-
-    report += `🏠 DETALLE HABITACIONES:\n`;
-    [...data.rooms].sort((a, b) => a.number.localeCompare(b.number)).forEach(room => {
-      const isOccupied = occupiedRoomIds.has(room.id);
-      const displayStatus = isOccupied ? 'Ocupada' : room.status;
-      report += `- Hab. ${room.number}: ${statusLabels[displayStatus] || displayStatus}\n`;
-    });
 
     if (navigator.share) {
       try {
@@ -156,7 +167,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
         {stats.map((stat, i) => (
           <button 
             key={i} 
@@ -165,15 +176,13 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
               if (stat.id === 'occ') setShowOccupiedRoomsModal(true);
             }}
             disabled={!stat.interactive}
-            className={`bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 flex items-center space-x-4 text-left transition-all ${stat.interactive ? 'hover:shadow-lg hover:scale-[1.02] active:scale-95 cursor-pointer' : 'cursor-default'}`}
+            className={`bg-white p-5 rounded-[2rem] shadow-sm border border-gray-100 flex flex-col items-start space-y-3 text-left transition-all ${stat.interactive ? 'hover:shadow-lg hover:scale-[1.02] active:scale-95 cursor-pointer' : 'cursor-default'}`}
           >
-            <div className={`${stat.color} text-white p-4 rounded-2xl text-2xl shadow-lg shrink-0`}>{stat.icon}</div>
+            <div className={`${stat.color} text-white p-3 rounded-xl text-xl shadow-md shrink-0`}>{stat.icon}</div>
             <div className="flex-1 min-w-0">
               <p className="text-[9px] text-gray-400 font-black uppercase tracking-widest truncate">{stat.label}</p>
-              <div className="flex items-baseline space-x-2">
-                <p className="text-2xl font-black text-gray-800 tracking-tighter">{stat.value}</p>
-                <p className="text-[9px] font-bold text-gray-400 truncate uppercase">{stat.subValue}</p>
-              </div>
+              <p className="text-xl font-black text-gray-800 tracking-tighter truncate">{stat.value}</p>
+              <p className="text-[9px] font-bold text-gray-400 truncate uppercase">{stat.subValue}</p>
             </div>
           </button>
         ))}
@@ -183,12 +192,18 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
         <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-gray-100">
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-xl font-black text-gray-800 tracking-tight">Reservas Recientes</h3>
-            <button className="text-xs font-bold text-indigo-600 hover:text-indigo-700 uppercase tracking-widest">Ver Todas</button>
+            <button 
+              onClick={() => setView('Calendar')}
+              className="text-xs font-bold text-indigo-600 hover:text-indigo-700 uppercase tracking-widest active:scale-95 transition-transform"
+            >
+              Ver Todas
+            </button>
           </div>
           <div className="space-y-4">
             {data.reservations.slice(0, 5).map(res => {
               const guest = data.guests.find(g => g.id === res.guest_id);
               const room = data.rooms.find(r => r.id === res.room_id);
+              const balance = (res.total_price || 0) - (res.advance_payment || 0);
               return (
                 <div key={res.id} className="flex justify-between items-center p-4 hover:bg-gray-50 rounded-2xl transition-all border border-transparent hover:border-gray-100 group">
                   <div className="flex items-center space-x-4">
@@ -197,16 +212,19 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
                     </div>
                     <div>
                       <p className="font-bold text-gray-800">{guest?.name}</p>
-                      <p className="text-xs text-gray-400 font-medium tracking-tight">Hab. {room?.number} • {res.check_in} al {res.check_out}</p>
+                      <p className="text-xs text-gray-400 font-medium tracking-tight">Hab. {room?.number} • ${res.total_price}</p>
                     </div>
                   </div>
-                  <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                    res.status === 'Check-in' ? 'bg-indigo-600 text-white shadow-sm' : 
-                    res.status === 'Confirmada' ? 'bg-blue-100 text-blue-700' :
-                    res.status === 'Check-out' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-700'
-                  }`}>
-                    {res.status}
-                  </span>
+                  <div className="text-right">
+                    <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                      res.status === 'Check-in' ? 'bg-indigo-600 text-white shadow-sm' : 
+                      res.status === 'Confirmada' ? 'bg-blue-100 text-blue-700' :
+                      res.status === 'Check-out' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-700'
+                    }`}>
+                      {res.status}
+                    </span>
+                    {balance > 0 && <p className="text-[9px] font-black text-rose-500 mt-1 uppercase">Debe ${balance}</p>}
+                  </div>
                 </div>
               );
             })}
@@ -219,7 +237,12 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
         <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-gray-100">
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-xl font-black text-gray-800 tracking-tight">Estado Habitaciones</h3>
-            <button className="text-xs font-bold text-indigo-600 hover:text-indigo-700 uppercase tracking-widest">Gestionar</button>
+            <button 
+              onClick={() => setView('Rooms')}
+              className="text-xs font-bold text-indigo-600 hover:text-indigo-700 uppercase tracking-widest active:scale-95 transition-transform"
+            >
+              Gestionar
+            </button>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
             {data.rooms.slice(0, 9).map(room => {
@@ -243,9 +266,6 @@ const Dashboard: React.FC<DashboardProps> = ({ data }) => {
           </div>
         </div>
       </div>
-
-      {/* Modales existentes se mantienen iguales */}
-      {/* ... */}
     </div>
   );
 };
